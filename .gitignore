@@ -22,3 +22,7 @@ ENV/
 # Local development settings
 .env
 .env.local 
+
+# Static files
+staticfiles/
+static/ 
