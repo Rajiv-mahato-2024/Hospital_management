@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <div class="flex items-center justify-between">
+            <h1 class="text-3xl font-bold text-gray-900">Appointment Details</h1>
+            <a href="{% if user.doctor %}{% url 'appointments' %}{% else %}{% url 'dashboard' %}{% endif %}"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Appointment Information
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Details about the appointment
+            </p>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Date</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ appointment.appointment_date|date:"F d, Y" }}</dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Time</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ appointment.appointment_time|time:"g:i A" }}</dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Status</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if appointment.status == 'scheduled' %}bg-green-100 text-green-800
+                            {% elif appointment.status == 'completed' %}bg-gray-100 text-gray-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ appointment.status|title }}
+                        </span>
+                    </dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Reason</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ appointment.reason }}</dd>
+                </div>
+                {% if user.doctor %}
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-gray-500">Patient Information</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        <div class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                            <div>
+                                <p><strong>Name:</strong> {{ appointment.patient.user.get_full_name }}</p>
+                                <p><strong>Email:</strong> {{ appointment.patient.user.email }}</p>
+                                <p><strong>Phone:</strong> {{ appointment.patient.phone }}</p>
+                            </div>
+                            <div>
+                                <p><strong>Blood Group:</strong> {{ appointment.patient.blood_group }}</p>
+                                <p><strong>Date of Birth:</strong> {{ appointment.patient.date_of_birth }}</p>
+                            </div>
+                        </div>
+                    </dd>
+                </div>
+                {% else %}
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-gray-500">Doctor Information</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        <div class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                            <div>
+                                <p><strong>Name:</strong> Dr. {{ appointment.doctor.user.get_full_name }}</p>
+                                <p><strong>Specialization:</strong> {{ appointment.doctor.specialization }}</p>
+                            </div>
+                            <div>
+                                <p><strong>Experience:</strong> {{ appointment.doctor.experience }} years</p>
+                            </div>
+                        </div>
+                    </dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    {% if user.doctor and appointment.status == 'scheduled' %}
+    <div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Update Appointment Status
+            </h3>
+        </div>
+        <form method="POST" class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            {% csrf_token %}
+            <div class="space-y-6">
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                    <div class="mt-1">
+                        <select id="status" name="status" required
+                            class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                            <option value="scheduled" {% if appointment.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                            <option value="completed" {% if appointment.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="cancelled" {% if appointment.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit"
+                        class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        Update Status
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

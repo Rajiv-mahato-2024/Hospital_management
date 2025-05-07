@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <div class="flex items-center justify-between">
+            <h1 class="text-3xl font-bold text-gray-900">Patient Details</h1>
+            <a href="{% url 'patients' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Patients
+            </a>
+        </div>
+    </div>
+
+    <!-- Patient Information -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Patient Information
+            </h3>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Full name</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ patient.user.get_full_name }}</dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Email address</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ patient.user.email }}</dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Phone number</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ patient.phone }}</dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Blood Group</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ patient.blood_group }}</dd>
+                </div>
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-gray-500">Address</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ patient.address }}</dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Date of Birth</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ patient.date_of_birth }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Add Medical Record Form -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Add Medical Record
+            </h3>
+        </div>
+        <form method="POST" class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            {% csrf_token %}
+            <div class="space-y-6">
+                <div>
+                    <label for="diagnosis" class="block text-sm font-medium text-gray-700">Diagnosis</label>
+                    <div class="mt-1">
+                        <textarea id="diagnosis" name="diagnosis" rows="3" required
+                            class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="prescription" class="block text-sm font-medium text-gray-700">Prescription</label>
+                    <div class="mt-1">
+                        <textarea id="prescription" name="prescription" rows="3" required
+                            class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="notes" class="block text-sm font-medium text-gray-700">Additional Notes</label>
+                    <div class="mt-1">
+                        <textarea id="notes" name="notes" rows="3"
+                            class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit"
+                        class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        Add Record
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Medical Records -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Medical Records
+            </h3>
+        </div>
+        <div class="border-t border-gray-200">
+            <div class="flow-root">
+                <ul class="-my-5 divide-y divide-gray-200">
+                    {% for record in medical_records %}
+                    <li class="py-5 px-4 sm:px-6">
+                        <div class="relative focus-within:ring-2 focus-within:ring-primary">
+                            <h4 class="text-sm font-semibold text-gray-800">
+                                {{ record.created_at|date:"F d, Y" }}
+                            </h4>
+                            <p class="mt-1 text-sm text-gray-600">
+                                {{ record.diagnosis }}
+                            </p>
+                            <div class="mt-2">
+                                <div class="text-sm text-gray-500">
+                                    <p><strong>Prescription:</strong> {{ record.prescription }}</p>
+                                    {% if record.notes %}
+                                    <p><strong>Notes:</strong> {{ record.notes }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="py-5 px-4 sm:px-6 text-center text-gray-500">
+                        No medical records found
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Appointments -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Appointments
+            </h3>
+        </div>
+        <div class="border-t border-gray-200">
+            <div class="flow-root">
+                <ul class="-my-5 divide-y divide-gray-200">
+                    {% for appointment in appointments %}
+                    <li class="py-5 px-4 sm:px-6">
+                        <div class="relative focus-within:ring-2 focus-within:ring-primary">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-800">
+                                        {{ appointment.appointment_date|date:"F d, Y" }} at {{ appointment.appointment_time|time:"g:i A" }}
+                                    </h4>
+                                    <p class="mt-1 text-sm text-gray-600">
+                                        {{ appointment.reason }}
+                                    </p>
+                                </div>
+                                <div class="ml-2 flex-shrink-0 flex">
+                                    <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        {% if appointment.status == 'scheduled' %}bg-green-100 text-green-800
+                                        {% elif appointment.status == 'completed' %}bg-gray-100 text-gray-800
+                                        {% else %}bg-red-100 text-red-800{% endif %}">
+                                        {{ appointment.status|title }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="py-5 px-4 sm:px-6 text-center text-gray-500">
+                        No appointments found
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

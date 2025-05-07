@@ -1,168 +1,213 @@
 {% extends 'base.html' %}
-{% load static %}
 
 {% block content %}
-<div class="container mt-5">
-    {% if messages %}
-    <div class="messages">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Profile</h1>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <form method="POST" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            <div class="px-4 py-5 sm:p-6">
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <!-- Basic Information -->
+                    <div class="sm:col-span-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="first_name" class="block text-sm font-medium text-gray-700">First name</label>
+                        <div class="mt-1">
+                            <input type="text" name="first_name" id="first_name" value="{{ user.first_name }}"
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="last_name" class="block text-sm font-medium text-gray-700">Last name</label>
+                        <div class="mt-1">
+                            <input type="text" name="last_name" id="last_name" value="{{ user.last_name }}"
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-4">
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
+                        <div class="mt-1">
+                            <input type="email" name="email" id="email" value="{{ user.email }}"
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="phone" class="block text-sm font-medium text-gray-700">Phone number</label>
+                        <div class="mt-1">
+                            <input type="tel" name="phone" id="phone" value="{{ profile.phone }}"
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-6">
+                        <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                        <div class="mt-1">
+                            <textarea id="address" name="address" rows="3"
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">{{ profile.address }}</textarea>
+                        </div>
+                    </div>
+
+                    {% if user.doctor %}
+                    <!-- Doctor Specific Information -->
+                    <div class="sm:col-span-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Professional Information</h3>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="specialization" class="block text-sm font-medium text-gray-700">Specialization</label>
+                        <div class="mt-1">
+                            <input type="text" name="specialization" id="specialization" value="{{ profile.specialization }}"
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="experience" class="block text-sm font-medium text-gray-700">Years of Experience</label>
+                        <div class="mt-1">
+                            <input type="number" name="experience" id="experience" value="{{ profile.experience }}"
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+                <button type="submit"
+                    class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    Save changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if user.patient %}
+    <!-- Patient's Appointments -->
+    <div class="mt-8">
+        <h2 class="text-lg font-medium text-gray-900">Upcoming Appointments</h2>
+        <div class="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for appointment in appointments %}
+                <li>
+                    <a href="{% url 'appointment_detail' appointment.id %}" class="block hover:bg-gray-50">
+                        <div class="px-4 py-4 sm:px-6">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <p class="text-sm font-medium text-primary truncate">
+                                        Dr. {{ appointment.doctor.user.get_full_name }}
+                                    </p>
+                                    <div class="ml-2 flex-shrink-0 flex">
+                                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            {% if appointment.status == 'scheduled' %}bg-green-100 text-green-800
+                                            {% elif appointment.status == 'completed' %}bg-gray-100 text-gray-800
+                                            {% else %}bg-red-100 text-red-800{% endif %}">
+                                            {{ appointment.status|title }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="ml-2 flex-shrink-0 flex">
+                                    <p class="text-sm text-gray-500">
+                                        {{ appointment.date|date:"M d, Y" }} at {{ appointment.time|time:"g:i A" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                {% empty %}
+                <li class="px-4 py-4 sm:px-6 text-center text-gray-500">
+                    No upcoming appointments
+                </li>
+                {% endfor %}
+            </ul>
         </div>
-        {% endfor %}
+    </div>
+
+    <!-- Patient's Medical Records -->
+    <div class="mt-8">
+        <h2 class="text-lg font-medium text-gray-900">Medical Records</h2>
+        <div class="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for record in medical_records %}
+                <li>
+                    <div class="px-4 py-4 sm:px-6">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <p class="text-sm font-medium text-primary truncate">
+                                    Dr. {{ record.doctor.user.get_full_name }}
+                                </p>
+                                <div class="ml-2 flex-shrink-0 flex">
+                                    <p class="text-sm text-gray-500">
+                                        {{ record.date|date:"M d, Y" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">{{ record.diagnosis }}</p>
+                        </div>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="px-4 py-4 sm:px-6 text-center text-gray-500">
+                    No medical records found
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
     {% endif %}
 
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header">
-                    <h2>Profile Information</h2>
-                </div>
-                <div class="card-body">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <div class="form-group mb-3">
-                            <label for="first_name">First Name</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+    {% if user.doctor %}
+    <!-- Doctor's Today's Appointments -->
+    <div class="mt-8">
+        <h2 class="text-lg font-medium text-gray-900">Today's Appointments</h2>
+        <div class="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for appointment in appointments %}
+                <li>
+                    <a href="{% url 'appointment_detail' appointment.id %}" class="block hover:bg-gray-50">
+                        <div class="px-4 py-4 sm:px-6">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <p class="text-sm font-medium text-primary truncate">
+                                        {{ appointment.patient.user.get_full_name }}
+                                    </p>
+                                    <div class="ml-2 flex-shrink-0 flex">
+                                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            {% if appointment.status == 'scheduled' %}bg-green-100 text-green-800
+                                            {% elif appointment.status == 'completed' %}bg-gray-100 text-gray-800
+                                            {% else %}bg-red-100 text-red-800{% endif %}">
+                                            {{ appointment.status|title }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="ml-2 flex-shrink-0 flex">
+                                    <p class="text-sm text-gray-500">
+                                        {{ appointment.time|time:"g:i A" }}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group mb-3">
-                            <label for="last_name">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="email">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="phone">Phone</label>
-                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ profile.phone }}" required>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="address">Address</label>
-                            <textarea class="form-control" id="address" name="address" rows="3" required>{{ profile.address }}</textarea>
-                        </div>
-
-                        {% if user.is_doctor %}
-                        <div class="form-group mb-3">
-                            <label for="specialization">Specialization</label>
-                            <input type="text" class="form-control" id="specialization" name="specialization" value="{{ profile.specialization }}" required>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="experience">Experience (years)</label>
-                            <input type="number" class="form-control" id="experience" name="experience" value="{{ profile.experience }}" required>
-                        </div>
-                        {% endif %}
-
-                        <button type="submit" class="btn btn-primary">Update Profile</button>
-                    </form>
-                </div>
-            </div>
-
-            {% if user.is_patient %}
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h3>Upcoming Appointments</h3>
-                </div>
-                <div class="card-body">
-                    {% if appointments %}
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Doctor</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for appointment in appointments %}
-                                <tr>
-                                    <td>{{ appointment.date }}</td>
-                                    <td>{{ appointment.time }}</td>
-                                    <td>Dr. {{ appointment.doctor.user.get_full_name }}</td>
-                                    <td>{{ appointment.status }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p>No upcoming appointments.</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h3>Medical Records</h3>
-                </div>
-                <div class="card-body">
-                    {% if medical_records %}
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Doctor</th>
-                                    <th>Diagnosis</th>
-                                    <th>Prescription</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for record in medical_records %}
-                                <tr>
-                                    <td>{{ record.date }}</td>
-                                    <td>Dr. {{ record.doctor.user.get_full_name }}</td>
-                                    <td>{{ record.diagnosis }}</td>
-                                    <td>{{ record.prescription }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p>No medical records found.</p>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if user.is_doctor %}
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h3>Today's Appointments</h3>
-                </div>
-                <div class="card-body">
-                    {% if appointments %}
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Patient</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for appointment in appointments %}
-                                <tr>
-                                    <td>{{ appointment.time }}</td>
-                                    <td>{{ appointment.patient.user.get_full_name }}</td>
-                                    <td>{{ appointment.status }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p>No appointments scheduled for today.</p>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
+                    </a>
+                </li>
+                {% empty %}
+                <li class="px-4 py-4 sm:px-6 text-center text-gray-500">
+                    No appointments scheduled for today
+                </li>
+                {% endfor %}
+            </ul>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %} 

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Medical Records</h1>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="flow-root">
+                <ul class="-my-5 divide-y divide-gray-200">
+                    {% for record in records %}
+                    <li class="py-5">
+                        <div class="relative focus-within:ring-2 focus-within:ring-primary">
+                            <h3 class="text-sm font-semibold text-gray-800">
+                                <span class="absolute inset-0" aria-hidden="true"></span>
+                                Dr. {{ record.doctor.user.get_full_name }}
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-600 line-clamp-2">
+                                {{ record.diagnosis }}
+                            </p>
+                            <div class="mt-2">
+                                <div class="text-sm text-gray-500">
+                                    <p><strong>Date:</strong> {{ record.created_at|date:"F d, Y" }}</p>
+                                    <p><strong>Prescription:</strong> {{ record.prescription }}</p>
+                                    {% if record.notes %}
+                                    <p><strong>Notes:</strong> {{ record.notes }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="py-5 text-center text-gray-500">
+                        No medical records found
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

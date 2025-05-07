@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Book an Appointment</h1>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <form method="POST" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            <div class="px-4 py-5 sm:p-6">
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-6">
+                        <label for="doctor" class="block text-sm font-medium text-gray-700">Select Doctor</label>
+                        <div class="mt-1">
+                            <select id="doctor" name="doctor" required
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                                <option value="">Select a doctor</option>
+                                {% for doctor in doctors %}
+                                <option value="{{ doctor.id }}">
+                                    Dr. {{ doctor.user.get_full_name }} - {{ doctor.specialization }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="appointment_date" class="block text-sm font-medium text-gray-700">Appointment Date</label>
+                        <div class="mt-1">
+                            <input type="date" name="appointment_date" id="appointment_date" required
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="appointment_time" class="block text-sm font-medium text-gray-700">Appointment Time</label>
+                        <div class="mt-1">
+                            <input type="time" name="appointment_time" id="appointment_time" required
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <div class="sm:col-span-6">
+                        <label for="reason" class="block text-sm font-medium text-gray-700">Reason for Visit</label>
+                        <div class="mt-1">
+                            <textarea id="reason" name="reason" rows="3" required
+                                class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                                placeholder="Please describe your symptoms or reason for the appointment"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+                <button type="submit"
+                    class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    Book Appointment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('appointment_date').min = today;
+</script>
+{% endblock %} 
