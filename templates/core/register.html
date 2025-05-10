@@ -5,7 +5,17 @@
     <div class="bg-white shadow rounded-lg p-6">
         <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Register</h2>
         
-        <form method="post" class="space-y-6">
+        {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+            <div class="p-4 mb-4 {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} rounded-md">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <form method="post" class="space-y-6" id="registrationForm">
             {% csrf_token %}
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -32,12 +42,14 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">Password</label>
-                <input type="password" name="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                <input type="password" name="password" required minlength="8" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                <p class="mt-1 text-sm text-gray-500">Password must be at least 8 characters long</p>
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">Phone</label>
-                <input type="tel" name="phone" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                <input type="tel" name="phone" required pattern="[0-9]{10}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                <p class="mt-1 text-sm text-gray-500">Enter a valid 10-digit phone number</p>
             </div>
 
             <div>
@@ -51,6 +63,8 @@
                     <option value="">Select user type</option>
                     <option value="patient">Patient</option>
                     <option value="doctor">Doctor</option>
+                    <option value="employee">Employee</option>
+                    <option value="admin">Admin</option>
                 </select>
             </div>
 
@@ -81,12 +95,38 @@
             <div id="doctor_fields" class="hidden space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Specialization</label>
-                    <input type="text" name="specialization" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    <select name="specialization" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <option value="">Select specialization</option>
+                        <option value="GENERAL">General Physician</option>
+                        <option value="CARDIOLOGY">Cardiology</option>
+                        <option value="NEUROLOGY">Neurology</option>
+                        <option value="PEDIATRICS">Pediatrics</option>
+                        <option value="DERMATOLOGY">Dermatology</option>
+                        <option value="ORTHOPEDICS">Orthopedics</option>
+                        <option value="GYNECOLOGY">Gynecology</option>
+                        <option value="OPHTHALMOLOGY">Ophthalmology</option>
+                        <option value="DENTISTRY">Dentistry</option>
+                    </select>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Experience (years)</label>
-                    <input type="number" name="experience" min="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    <input type="number" name="experience" min="0" max="50" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                </div>
+            </div>
+
+            <!-- Employee-specific fields -->
+            <div id="employee_fields" class="hidden space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Position</label>
+                    <select name="position" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <option value="">Select position</option>
+                        <option value="RECEPTIONIST">Receptionist</option>
+                        <option value="NURSE">Nurse</option>
+                        <option value="PHARMACIST">Pharmacist</option>
+                        <option value="LAB_TECH">Lab Technician</option>
+                        <option value="ADMIN">Administrative Staff</option>
+                    </select>
                 </div>
             </div>
 
@@ -112,16 +152,68 @@
     document.getElementById('user_type').addEventListener('change', function() {
         const patientFields = document.getElementById('patient_fields');
         const doctorFields = document.getElementById('doctor_fields');
+        const employeeFields = document.getElementById('employee_fields');
         
+        // Hide all fields first
+        patientFields.classList.add('hidden');
+        doctorFields.classList.add('hidden');
+        employeeFields.classList.add('hidden');
+        
+        // Show relevant fields
         if (this.value === 'patient') {
             patientFields.classList.remove('hidden');
-            doctorFields.classList.add('hidden');
+            // Make patient fields required
+            patientFields.querySelectorAll('input, select').forEach(field => {
+                field.required = true;
+            });
         } else if (this.value === 'doctor') {
             doctorFields.classList.remove('hidden');
-            patientFields.classList.add('hidden');
-        } else {
-            patientFields.classList.add('hidden');
-            doctorFields.classList.add('hidden');
+            // Make doctor fields required
+            doctorFields.querySelectorAll('input, select').forEach(field => {
+                field.required = true;
+            });
+        } else if (this.value === 'employee') {
+            employeeFields.classList.remove('hidden');
+            // Make employee fields required
+            employeeFields.querySelectorAll('input, select').forEach(field => {
+                field.required = true;
+            });
+        }
+    });
+
+    // Form validation
+    document.getElementById('registrationForm').addEventListener('submit', function(e) {
+        const userType = document.getElementById('user_type').value;
+        let isValid = true;
+        
+        // Check user type specific fields
+        if (userType === 'patient') {
+            const dateOfBirth = document.querySelector('input[name="date_of_birth"]').value;
+            const bloodGroup = document.querySelector('select[name="blood_group"]').value;
+            
+            if (!dateOfBirth || !bloodGroup) {
+                isValid = false;
+                alert('Please fill in all required fields for patient registration');
+            }
+        } else if (userType === 'doctor') {
+            const specialization = document.querySelector('select[name="specialization"]').value;
+            const experience = document.querySelector('input[name="experience"]').value;
+            
+            if (!specialization || !experience) {
+                isValid = false;
+                alert('Please fill in all required fields for doctor registration');
+            }
+        } else if (userType === 'employee') {
+            const position = document.querySelector('select[name="position"]').value;
+            
+            if (!position) {
+                isValid = false;
+                alert('Please fill in all required fields for employee registration');
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
         }
     });
 </script>
