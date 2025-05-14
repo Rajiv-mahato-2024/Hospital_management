@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Admin Dashboard</h1>
+    
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Patients</h3>
+            <p class="text-3xl font-bold text-primary">{{ total_patients }}</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Doctors</h3>
+            <p class="text-3xl font-bold text-primary">{{ total_doctors }}</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Appointments</h3>
+            <p class="text-3xl font-bold text-primary">{{ total_appointments }}</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Revenue</h3>
+            <p class="text-3xl font-bold text-primary">${{ revenue }}</p>
+        </div>
+    </div>
+    
+    <!-- Management Options -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <a href="{% url 'manage_doctors' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Doctors</h3>
+            <p class="text-gray-600">Add, edit, or remove doctors from the system</p>
+        </a>
+        
+        <a href="{% url 'manage_employees' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Employees</h3>
+            <p class="text-gray-600">Manage hospital staff and their roles</p>
+        </a>
+        
+        <a href="{% url 'manage_patients' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Patients</h3>
+            <p class="text-gray-600">View and manage patient records</p>
+        </a>
+        
+        <a href="{% url 'manage_appointments' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Appointments</h3>
+            <p class="text-gray-600">View and manage all appointments</p>
+        </a>
+        
+        <a href="{% url 'manage_bills' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Bills</h3>
+            <p class="text-gray-600">View and manage patient bills</p>
+        </a>
+        
+        <a href="{% url 'system_reports' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">System Reports</h3>
+            <p class="text-gray-600">Generate and view system reports</p>
+        </a>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Appointments -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Recent Appointments</h3>
+            <div class="space-y-4">
+                {% for appointment in recent_appointments %}
+                <div class="border-b pb-4">
+                    <p class="font-medium">{{ appointment.patient.user.get_full_name }} with Dr. {{ appointment.doctor.user.get_full_name }}</p>
+                    <p class="text-sm text-gray-600">{{ appointment.appointment_date }} at {{ appointment.appointment_time }}</p>
+                    <p class="text-sm text-gray-600">Status: <span class="font-medium">{{ appointment.status }}</span></p>
+                </div>
+                {% empty %}
+                <p class="text-gray-600">No recent appointments</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Recent Bills -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Recent Bills</h3>
+            <div class="space-y-4">
+                {% for bill in recent_bills %}
+                <div class="border-b pb-4">
+                    <p class="font-medium">{{ bill.patient.user.get_full_name }}</p>
+                    <p class="text-sm text-gray-600">Amount: ${{ bill.amount }}</p>
+                    <p class="text-sm text-gray-600">Status: <span class="font-medium {% if bill.paid %}text-green-600{% else %}text-red-600{% endif %}">
+                        {% if bill.paid %}Paid{% else %}Pending{% endif %}
+                    </span></p>
+                </div>
+                {% empty %}
+                <p class="text-gray-600">No recent bills</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

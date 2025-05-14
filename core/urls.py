@@ -18,4 +18,21 @@ urlpatterns = [
     path('patients/', views.patients, name='patients'),
     path('patient/<int:patient_id>/', views.patient_detail, name='patient_detail'),
     path('appointment/<int:appointment_id>/', views.appointment_detail, name='appointment_detail'),
+    
+    # Admin URLs
+    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin/doctors/', views.manage_doctors, name='manage_doctors'),
+    path('admin/employees/', views.manage_employees, name='manage_employees'),
+    path('admin/patients/', views.manage_patients, name='manage_patients'),
+    path('admin/appointments/', views.manage_appointments, name='manage_appointments'),
+    path('admin/bills/', views.manage_bills, name='manage_bills'),
+    path('admin/reports/', views.system_reports, name='system_reports'),
+    
+    # Employee URLs
+    path('employee/dashboard/', views.employee_dashboard, name='employee_dashboard'),
+    path('employee/appointments/', views.manage_appointments_employee, name='manage_appointments_employee'),
+    path('employee/bills/', views.manage_bills_employee, name='manage_bills_employee'),
+    path('employee/create-bill/', views.create_bill, name='create_bill'),
+    path('employee/patients/', views.patient_records, name='patient_records'),
+    path('employee/doctors/', views.doctor_schedule, name='doctor_schedule'),
 ] 

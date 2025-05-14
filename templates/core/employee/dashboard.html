@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Employee Dashboard</h1>
+    
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Today's Appointments</h3>
+            <p class="text-3xl font-bold text-primary">{{ today_appointments|length }}</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Patients</h3>
+            <p class="text-3xl font-bold text-primary">{{ total_patients }}</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Pending Bills</h3>
+            <p class="text-3xl font-bold text-primary">{{ pending_bills }}</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Revenue</h3>
+            <p class="text-3xl font-bold text-primary">${{ total_revenue }}</p>
+        </div>
+    </div>
+    
+    <!-- Management Options -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <a href="{% url 'manage_appointments_employee' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Appointments</h3>
+            <p class="text-gray-600">View and manage patient appointments</p>
+        </a>
+        
+        <a href="{% url 'manage_bills_employee' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Manage Bills</h3>
+            <p class="text-gray-600">View and manage patient bills</p>
+        </a>
+        
+        <a href="{% url 'create_bill' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Create New Bill</h3>
+            <p class="text-gray-600">Generate new bills for patients</p>
+        </a>
+        
+        <a href="{% url 'patient_records' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Patient Records</h3>
+            <p class="text-gray-600">Access and manage patient information</p>
+        </a>
+        
+        <a href="{% url 'doctor_schedule' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition duration-300">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Doctor Schedule</h3>
+            <p class="text-gray-600">View doctor availability and schedules</p>
+        </a>
+    </div>
+    
+    <!-- Today's Appointments -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-gray-700 mb-4">Today's Appointments</h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for appointment in today_appointments %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ appointment.appointment_time }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ appointment.patient.user.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Dr. {{ appointment.doctor.user.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if appointment.status == 'CONFIRMED' %}bg-green-100 text-green-800
+                                {% elif appointment.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                                {% elif appointment.status == 'CANCELLED' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ appointment.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <form method="post" action="{% url 'manage_appointments_employee' %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="appointment_id" value="{{ appointment.id }}">
+                                {% if appointment.status == 'PENDING' %}
+                                <button type="submit" name="action" value="confirm" class="text-green-600 hover:text-green-900 mr-2">Confirm</button>
+                                <button type="submit" name="action" value="cancel" class="text-red-600 hover:text-red-900">Cancel</button>
+                                {% elif appointment.status == 'CONFIRMED' %}
+                                <button type="submit" name="action" value="complete" class="text-blue-600 hover:text-blue-900">Complete</button>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No appointments for today</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

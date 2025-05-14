@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-    <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Register</h2>
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">Register</h1>
         
         {% if messages %}
         <div class="mb-6">
             {% for message in messages %}
-            <div class="p-4 mb-4 {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} rounded-md">
+            <div class="p-4 mb-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
                 {{ message }}
             </div>
             {% endfor %}
@@ -18,203 +18,208 @@
         <form method="post" class="space-y-6" id="registrationForm">
             {% csrf_token %}
             
+            <!-- Basic Information -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">First Name</label>
-                    <input type="text" name="first_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    <input type="text" name="first_name" value="{{ form_data.first_name }}" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                           minlength="2" maxlength="50">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Last Name</label>
-                    <input type="text" name="last_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    <input type="text" name="last_name" value="{{ form_data.last_name }}" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                           minlength="2" maxlength="50">
                 </div>
             </div>
-
+            
             <div>
                 <label class="block text-sm font-medium text-gray-700">Username</label>
-                <input type="text" name="username" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                <input type="text" name="username" value="{{ form_data.username }}" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                       minlength="3" maxlength="50">
             </div>
-
+            
             <div>
                 <label class="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" name="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                <input type="email" name="email" value="{{ form_data.email }}" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
             </div>
-
+            
             <div>
                 <label class="block text-sm font-medium text-gray-700">Password</label>
-                <input type="password" name="password" required minlength="8" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                <p class="mt-1 text-sm text-gray-500">Password must be at least 8 characters long</p>
+                <input type="password" name="password" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                       minlength="8" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                       title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters">
+                <p class="mt-1 text-sm text-gray-500">Password must be at least 8 characters long and contain uppercase, lowercase, and numbers</p>
             </div>
-
+            
             <div>
                 <label class="block text-sm font-medium text-gray-700">Phone</label>
-                <input type="tel" name="phone" required pattern="[0-9]{10}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                <p class="mt-1 text-sm text-gray-500">Enter a valid 10-digit phone number</p>
+                <input type="tel" name="phone" value="{{ form_data.phone }}" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                       pattern="[0-9]{10}" title="Please enter a valid 10-digit phone number">
             </div>
-
+            
             <div>
                 <label class="block text-sm font-medium text-gray-700">Address</label>
-                <textarea name="address" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"></textarea>
+                <textarea name="address" required
+                          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                          minlength="5" maxlength="200">{{ form_data.address }}</textarea>
             </div>
-
+            
             <div>
                 <label class="block text-sm font-medium text-gray-700">User Type</label>
-                <select name="user_type" id="user_type" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                    <option value="">Select user type</option>
-                    <option value="patient">Patient</option>
-                    <option value="doctor">Doctor</option>
-                    <option value="employee">Employee</option>
-                    <option value="admin">Admin</option>
+                <select name="user_type" id="userType" required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    <option value="">Select User Type</option>
+                    <option value="patient" {% if form_data.user_type == 'patient' %}selected{% endif %}>Patient</option>
+                    <option value="doctor" {% if form_data.user_type == 'doctor' %}selected{% endif %}>Doctor</option>
+                    <option value="employee" {% if form_data.user_type == 'employee' %}selected{% endif %}>Employee</option>
+                    <option value="admin" {% if form_data.user_type == 'admin' %}selected{% endif %}>Admin</option>
                 </select>
             </div>
-
-            <!-- Patient-specific fields -->
-            <div id="patient_fields" class="hidden space-y-6">
+            
+            <!-- Patient Specific Fields -->
+            <div id="patientFields" class="hidden space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Date of Birth</label>
-                    <input type="date" name="date_of_birth" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    <input type="date" name="date_of_birth" value="{{ form_data.date_of_birth }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
                 </div>
-
+                
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Blood Group</label>
-                    <select name="blood_group" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                        <option value="">Select blood group</option>
+                    <select name="blood_group"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                        <option value="">Select Blood Group</option>
                         <option value="A+">A+</option>
                         <option value="A-">A-</option>
                         <option value="B+">B+</option>
                         <option value="B-">B-</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
                         <option value="AB+">AB+</option>
                         <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
                     </select>
                 </div>
             </div>
-
-            <!-- Doctor-specific fields -->
-            <div id="doctor_fields" class="hidden space-y-6">
+            
+            <!-- Doctor Specific Fields -->
+            <div id="doctorFields" class="hidden space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Specialization</label>
-                    <select name="specialization" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                        <option value="">Select specialization</option>
-                        <option value="GENERAL">General Physician</option>
-                        <option value="CARDIOLOGY">Cardiology</option>
-                        <option value="NEUROLOGY">Neurology</option>
-                        <option value="PEDIATRICS">Pediatrics</option>
-                        <option value="DERMATOLOGY">Dermatology</option>
-                        <option value="ORTHOPEDICS">Orthopedics</option>
-                        <option value="GYNECOLOGY">Gynecology</option>
-                        <option value="OPHTHALMOLOGY">Ophthalmology</option>
-                        <option value="DENTISTRY">Dentistry</option>
-                    </select>
+                    <input type="text" name="specialization" value="{{ form_data.specialization }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                           minlength="2" maxlength="100">
                 </div>
-
+                
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Experience (years)</label>
-                    <input type="number" name="experience" min="0" max="50" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
+                    <input type="number" name="experience" value="{{ form_data.experience }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                           min="0" max="50">
                 </div>
             </div>
-
-            <!-- Employee-specific fields -->
-            <div id="employee_fields" class="hidden space-y-6">
+            
+            <!-- Employee Specific Fields -->
+            <div id="employeeFields" class="hidden space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Position</label>
-                    <select name="position" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary">
-                        <option value="">Select position</option>
-                        <option value="RECEPTIONIST">Receptionist</option>
-                        <option value="NURSE">Nurse</option>
-                        <option value="PHARMACIST">Pharmacist</option>
-                        <option value="LAB_TECH">Lab Technician</option>
-                        <option value="ADMIN">Administrative Staff</option>
-                    </select>
+                    <input type="text" name="position" value="{{ form_data.position }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                           minlength="2" maxlength="100">
                 </div>
             </div>
-
-            <div>
-                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+            
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
                     Register
                 </button>
             </div>
         </form>
-
-        <div class="mt-6 text-center">
-            <p class="text-sm text-gray-600">
-                Already have an account? 
-                <a href="{% url 'login' %}" class="font-medium text-primary hover:text-secondary">
-                    Login here
-                </a>
-            </p>
-        </div>
     </div>
 </div>
 
 <script>
-    document.getElementById('user_type').addEventListener('change', function() {
-        const patientFields = document.getElementById('patient_fields');
-        const doctorFields = document.getElementById('doctor_fields');
-        const employeeFields = document.getElementById('employee_fields');
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeSelect = document.getElementById('userType');
+    const patientFields = document.getElementById('patientFields');
+    const doctorFields = document.getElementById('doctorFields');
+    const employeeFields = document.getElementById('employeeFields');
+    
+    function updateFields() {
+        const selectedType = userTypeSelect.value;
         
-        // Hide all fields first
+        // Hide all specific fields
         patientFields.classList.add('hidden');
         doctorFields.classList.add('hidden');
         employeeFields.classList.add('hidden');
         
         // Show relevant fields
-        if (this.value === 'patient') {
+        if (selectedType === 'patient') {
             patientFields.classList.remove('hidden');
-            // Make patient fields required
-            patientFields.querySelectorAll('input, select').forEach(field => {
-                field.required = true;
-            });
-        } else if (this.value === 'doctor') {
+        } else if (selectedType === 'doctor') {
             doctorFields.classList.remove('hidden');
-            // Make doctor fields required
-            doctorFields.querySelectorAll('input, select').forEach(field => {
-                field.required = true;
-            });
-        } else if (this.value === 'employee') {
+        } else if (selectedType === 'employee') {
             employeeFields.classList.remove('hidden');
-            // Make employee fields required
-            employeeFields.querySelectorAll('input, select').forEach(field => {
-                field.required = true;
-            });
         }
-    });
-
+    }
+    
+    userTypeSelect.addEventListener('change', updateFields);
+    updateFields(); // Initial update
+    
     // Form validation
-    document.getElementById('registrationForm').addEventListener('submit', function(e) {
-        const userType = document.getElementById('user_type').value;
+    const form = document.getElementById('registrationForm');
+    form.addEventListener('submit', function(event) {
+        const userType = userTypeSelect.value;
         let isValid = true;
         
-        // Check user type specific fields
-        if (userType === 'patient') {
-            const dateOfBirth = document.querySelector('input[name="date_of_birth"]').value;
-            const bloodGroup = document.querySelector('select[name="blood_group"]').value;
-            
-            if (!dateOfBirth || !bloodGroup) {
+        // Basic validation
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
                 isValid = false;
-                alert('Please fill in all required fields for patient registration');
+                field.classList.add('border-red-500');
+            } else {
+                field.classList.remove('border-red-500');
+            }
+        });
+        
+        // Type-specific validation
+        if (userType === 'patient') {
+            const dob = form.querySelector('[name="date_of_birth"]');
+            const bloodGroup = form.querySelector('[name="blood_group"]');
+            if (!dob.value || !bloodGroup.value) {
+                isValid = false;
+                if (!dob.value) dob.classList.add('border-red-500');
+                if (!bloodGroup.value) bloodGroup.classList.add('border-red-500');
             }
         } else if (userType === 'doctor') {
-            const specialization = document.querySelector('select[name="specialization"]').value;
-            const experience = document.querySelector('input[name="experience"]').value;
-            
-            if (!specialization || !experience) {
+            const specialization = form.querySelector('[name="specialization"]');
+            const experience = form.querySelector('[name="experience"]');
+            if (!specialization.value || !experience.value) {
                 isValid = false;
-                alert('Please fill in all required fields for doctor registration');
+                if (!specialization.value) specialization.classList.add('border-red-500');
+                if (!experience.value) experience.classList.add('border-red-500');
             }
         } else if (userType === 'employee') {
-            const position = document.querySelector('select[name="position"]').value;
-            
-            if (!position) {
+            const position = form.querySelector('[name="position"]');
+            if (!position.value) {
                 isValid = false;
-                alert('Please fill in all required fields for employee registration');
+                position.classList.add('border-red-500');
             }
         }
         
         if (!isValid) {
-            e.preventDefault();
+            event.preventDefault();
+            alert('Please fill in all required fields correctly.');
         }
     });
+});
 </script>
 {% endblock %} 

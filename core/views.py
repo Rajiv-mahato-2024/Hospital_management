@@ -12,6 +12,8 @@ from .models import Patient, Doctor, Appointment, MedicalRecord, Bill, Employee,
 from datetime import datetime, timedelta, date
 import logging
 import re
+from .schemas import PatientCreate, DoctorCreate, EmployeeCreate
+from .utils import ErrorHandler, DatabaseHandler, SecurityHandler
 
 logger = logging.getLogger(__name__)
 
@@ -48,140 +50,148 @@ def home(request):
 def register(request):
     if request.method == 'POST':
         try:
-            # Get and validate basic information
-            username = request.POST.get('username', '').strip()
-            password = request.POST.get('password', '').strip()
-            email = request.POST.get('email', '').strip()
-            first_name = request.POST.get('first_name', '').strip()
-            last_name = request.POST.get('last_name', '').strip()
-            user_type = request.POST.get('user_type', '').strip()
-            phone = request.POST.get('phone', '').strip()
-            address = request.POST.get('address', '').strip()
+            # Get user type and prepare data
+            user_type = request.POST.get('user_type')
+            form_data = {
+                'username': request.POST.get('username', '').strip(),
+                'email': request.POST.get('email', '').strip(),
+                'first_name': request.POST.get('first_name', '').strip(),
+                'last_name': request.POST.get('last_name', '').strip(),
+                'phone': request.POST.get('phone', '').strip(),
+                'address': request.POST.get('address', '').strip(),
+                'password': request.POST.get('password', '').strip(),
+            }
 
             # Validate required fields
-            if not all([username, password, email, first_name, last_name, user_type, phone, address]):
-                messages.error(request, 'All fields are required')
-                return render(request, 'core/register.html')
+            is_valid, error_message = ErrorHandler.validate_request_data(
+                form_data,
+                ['username', 'email', 'first_name', 'last_name', 'phone', 'address', 'password']
+            )
+            if not is_valid:
+                messages.error(request, error_message)
+                return render(request, 'core/register.html', {'form_data': request.POST})
 
-            # Validate email format
-            try:
-                validate_email(email)
-            except ValidationError:
-                messages.error(request, 'Please enter a valid email address')
-                return render(request, 'core/register.html')
-
-            # Validate phone number
-            try:
-                validate_phone_number(phone)
-            except ValidationError as e:
-                messages.error(request, str(e))
-                return render(request, 'core/register.html')
-
-            # Validate password
-            try:
-                validate_password(password)
-            except ValidationError as e:
-                messages.error(request, str(e))
-                return render(request, 'core/register.html')
+            # Validate password strength
+            is_strong, password_message = SecurityHandler.validate_password_strength(form_data['password'])
+            if not is_strong:
+                messages.error(request, password_message)
+                return render(request, 'core/register.html', {'form_data': request.POST})
 
             # Check if username or email already exists
-            if User.objects.filter(username=username).exists():
+            if User.objects.filter(username=form_data['username']).exists():
                 messages.error(request, 'Username already exists')
-                return render(request, 'core/register.html')
+                return render(request, 'core/register.html', {'form_data': request.POST})
 
-            if User.objects.filter(email=email).exists():
+            if User.objects.filter(email=form_data['email']).exists():
                 messages.error(request, 'Email already exists')
-                return render(request, 'core/register.html')
+                return render(request, 'core/register.html', {'form_data': request.POST})
 
-            # Create user
-            user = User.objects.create_user(
-                username=username,
-                password=password,
-                email=email,
-                first_name=first_name,
-                last_name=last_name
-            )
-
+            # Validate data based on user type
             try:
-                # Create profile based on user type
                 if user_type == 'patient':
-                    date_of_birth = request.POST.get('date_of_birth')
-                    blood_group = request.POST.get('blood_group')
+                    form_data.update({
+                        'date_of_birth': request.POST.get('date_of_birth'),
+                        'blood_group': request.POST.get('blood_group')
+                    })
+                    validated_data = PatientCreate(**form_data)
                     
-                    if not all([date_of_birth, blood_group]):
-                        raise ValidationError('Date of birth and blood group are required for patients')
-
-                    # Validate date of birth
-                    dob = datetime.strptime(date_of_birth, '%Y-%m-%d').date()
-                    if dob >= timezone.now().date():
-                        raise ValidationError('Date of birth cannot be in the future')
-
+                    # Create user and profile
+                    user = DatabaseHandler.safe_db_operation(
+                        User.objects.create_user,
+                        username=validated_data.username,
+                        email=validated_data.email,
+                        password=validated_data.password,
+                        first_name=validated_data.first_name,
+                        last_name=validated_data.last_name
+                    )
+                    
                     Patient.objects.create(
                         user=user,
-                        phone=phone,
-                        address=address,
-                        date_of_birth=dob,
-                        blood_group=blood_group
+                        phone=validated_data.phone,
+                        address=validated_data.address,
+                        date_of_birth=validated_data.date_of_birth,
+                        blood_group=validated_data.blood_group
                     )
 
                 elif user_type == 'doctor':
-                    specialization = request.POST.get('specialization')
-                    experience = request.POST.get('experience')
+                    form_data.update({
+                        'specialization': request.POST.get('specialization'),
+                        'experience': int(request.POST.get('experience', 0))
+                    })
+                    validated_data = DoctorCreate(**form_data)
                     
-                    if not all([specialization, experience]):
-                        raise ValidationError('Specialization and experience are required for doctors')
-
-                    # Validate experience
-                    try:
-                        experience = int(experience)
-                        if not (0 <= experience <= 50):
-                            raise ValidationError('Experience must be between 0 and 50 years')
-                    except ValueError:
-                        raise ValidationError('Experience must be a valid number')
-
+                    user = DatabaseHandler.safe_db_operation(
+                        User.objects.create_user,
+                        username=validated_data.username,
+                        email=validated_data.email,
+                        password=validated_data.password,
+                        first_name=validated_data.first_name,
+                        last_name=validated_data.last_name
+                    )
+                    
                     Doctor.objects.create(
                         user=user,
-                        specialization=specialization,
-                        phone=phone,
-                        address=address,
-                        experience=experience
+                        specialization=validated_data.specialization,
+                        phone=validated_data.phone,
+                        address=validated_data.address,
+                        experience=validated_data.experience
                     )
 
                 elif user_type == 'employee':
-                    position = request.POST.get('position')
+                    form_data.update({
+                        'position': request.POST.get('position')
+                    })
+                    validated_data = EmployeeCreate(**form_data)
                     
-                    if not position:
-                        raise ValidationError('Position is required for employees')
-
+                    user = DatabaseHandler.safe_db_operation(
+                        User.objects.create_user,
+                        username=validated_data.username,
+                        email=validated_data.email,
+                        password=validated_data.password,
+                        first_name=validated_data.first_name,
+                        last_name=validated_data.last_name
+                    )
+                    
                     Employee.objects.create(
                         user=user,
-                        phone=phone,
-                        address=address,
-                        position=position
+                        phone=validated_data.phone,
+                        address=validated_data.address,
+                        position=validated_data.position
                     )
 
                 elif user_type == 'admin':
+                    user = DatabaseHandler.safe_db_operation(
+                        User.objects.create_user,
+                        username=form_data['username'],
+                        email=form_data['email'],
+                        password=form_data['password'],
+                        first_name=form_data['first_name'],
+                        last_name=form_data['last_name']
+                    )
+                    
                     AdminProfile.objects.create(
                         user=user,
-                        phone=phone,
-                        address=address
+                        phone=form_data['phone'],
+                        address=form_data['address']
                     )
                 else:
-                    raise ValidationError('Invalid user type')
+                    raise ValueError('Invalid user type')
 
+                # Log in the user
                 login(request, user)
-                messages.success(request, 'Registration successful')
+                messages.success(request, 'Registration successful! Welcome to our platform.')
                 return redirect('dashboard')
 
-            except ValidationError as e:
-                user.delete()  # Rollback user creation
-                messages.error(request, str(e))
-                return render(request, 'core/register.html')
+            except Exception as e:
+                # If any error occurs during user creation, the transaction will be rolled back
+                error_response = ErrorHandler.handle_error(e, 'user_creation')
+                messages.error(request, error_response['message'])
+                return render(request, 'core/register.html', {'form_data': request.POST})
 
         except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
-            messages.error(request, 'An error occurred during registration. Please try again.')
-            return render(request, 'core/register.html')
+            error_response = ErrorHandler.handle_error(e, 'registration')
+            messages.error(request, error_response['message'])
+            return render(request, 'core/register.html', {'form_data': request.POST})
 
     return render(request, 'core/register.html')
 
@@ -516,3 +526,286 @@ def appointment_detail(request, appointment_id):
         logger.error(f"Appointment detail error: {str(e)}")
         messages.error(request, 'An error occurred while loading appointment details.')
         return redirect('dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def admin_dashboard(request):
+    try:
+        context = {
+            'total_patients': Patient.objects.count(),
+            'total_doctors': Doctor.objects.count(),
+            'total_employees': Employee.objects.count(),
+            'total_appointments': Appointment.objects.count(),
+            'total_bills': Bill.objects.count(),
+            'revenue': Bill.objects.filter(paid=True).aggregate(
+                total=models.Sum('amount')
+            )['total'] or 0,
+            'recent_appointments': Appointment.objects.all().order_by('-created_at')[:5],
+            'recent_bills': Bill.objects.all().order_by('-created_at')[:5],
+        }
+        return render(request, 'core/admin/dashboard.html', context)
+    except Exception as e:
+        logger.error(f"Admin dashboard error: {str(e)}")
+        messages.error(request, 'An error occurred while loading the admin dashboard.')
+        return redirect('home')
+
+@login_required
+@user_passes_test(is_admin)
+def manage_doctors(request):
+    try:
+        doctors = Doctor.objects.all().select_related('user')
+        if request.method == 'POST':
+            doctor_id = request.POST.get('doctor_id')
+            action = request.POST.get('action')
+            doctor = get_object_or_404(Doctor, id=doctor_id)
+            
+            if action == 'toggle_availability':
+                doctor.is_available = not doctor.is_available
+                doctor.save()
+                messages.success(request, f'Doctor availability updated successfully')
+            elif action == 'delete':
+                doctor.user.delete()  # This will also delete the doctor profile due to CASCADE
+                messages.success(request, 'Doctor deleted successfully')
+            
+            return redirect('manage_doctors')
+        
+        return render(request, 'core/admin/manage_doctors.html', {'doctors': doctors})
+    except Exception as e:
+        logger.error(f"Manage doctors error: {str(e)}")
+        messages.error(request, 'An error occurred while managing doctors.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def manage_employees(request):
+    try:
+        employees = Employee.objects.all().select_related('user')
+        if request.method == 'POST':
+            employee_id = request.POST.get('employee_id')
+            action = request.POST.get('action')
+            employee = get_object_or_404(Employee, id=employee_id)
+            
+            if action == 'delete':
+                employee.user.delete()  # This will also delete the employee profile due to CASCADE
+                messages.success(request, 'Employee deleted successfully')
+            
+            return redirect('manage_employees')
+        
+        return render(request, 'core/admin/manage_employees.html', {'employees': employees})
+    except Exception as e:
+        logger.error(f"Manage employees error: {str(e)}")
+        messages.error(request, 'An error occurred while managing employees.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def manage_patients(request):
+    try:
+        patients = Patient.objects.all().select_related('user')
+        return render(request, 'core/admin/manage_patients.html', {'patients': patients})
+    except Exception as e:
+        logger.error(f"Manage patients error: {str(e)}")
+        messages.error(request, 'An error occurred while managing patients.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def manage_appointments(request):
+    try:
+        appointments = Appointment.objects.all().select_related('patient', 'doctor')
+        return render(request, 'core/admin/manage_appointments.html', {'appointments': appointments})
+    except Exception as e:
+        logger.error(f"Manage appointments error: {str(e)}")
+        messages.error(request, 'An error occurred while managing appointments.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def manage_bills(request):
+    try:
+        bills = Bill.objects.all().select_related('patient')
+        return render(request, 'core/admin/manage_bills.html', {'bills': bills})
+    except Exception as e:
+        logger.error(f"Manage bills error: {str(e)}")
+        messages.error(request, 'An error occurred while managing bills.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def system_reports(request):
+    try:
+        # Get date range from request
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        
+        if start_date and end_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        else:
+            # Default to last 30 days
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=30)
+        
+        # Generate reports
+        context = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'appointments': Appointment.objects.filter(
+                appointment_date__range=[start_date, end_date]
+            ).count(),
+            'revenue': Bill.objects.filter(
+                created_at__date__range=[start_date, end_date],
+                paid=True
+            ).aggregate(total=models.Sum('amount'))['total'] or 0,
+            'new_patients': Patient.objects.filter(
+                user__date_joined__date__range=[start_date, end_date]
+            ).count(),
+            'doctor_appointments': Appointment.objects.filter(
+                appointment_date__range=[start_date, end_date]
+            ).values('doctor__user__first_name', 'doctor__user__last_name').annotate(
+                count=models.Count('id')
+            ).order_by('-count')[:5],
+            'monthly_revenue': Bill.objects.filter(
+                paid=True
+            ).annotate(
+                month=models.functions.TruncMonth('created_at')
+            ).values('month').annotate(
+                total=models.Sum('amount')
+            ).order_by('month')[:12],
+        }
+        
+        return render(request, 'core/admin/system_reports.html', context)
+    except Exception as e:
+        logger.error(f"System reports error: {str(e)}")
+        messages.error(request, 'An error occurred while generating reports.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_employee)
+def employee_dashboard(request):
+    try:
+        today = timezone.now().date()
+        context = {
+            'today_appointments': Appointment.objects.filter(
+                appointment_date=today
+            ).order_by('appointment_time'),
+            'total_appointments': Appointment.objects.count(),
+            'total_patients': Patient.objects.count(),
+            'total_doctors': Doctor.objects.count(),
+            'pending_bills': Bill.objects.filter(paid=False).count(),
+            'total_revenue': Bill.objects.filter(paid=True).aggregate(
+                total=models.Sum('amount')
+            )['total'] or 0,
+        }
+        return render(request, 'core/employee/dashboard.html', context)
+    except Exception as e:
+        logger.error(f"Employee dashboard error: {str(e)}")
+        messages.error(request, 'An error occurred while loading the employee dashboard.')
+        return redirect('home')
+
+@login_required
+@user_passes_test(is_employee)
+def manage_appointments_employee(request):
+    try:
+        appointments = Appointment.objects.all().select_related('patient', 'doctor')
+        if request.method == 'POST':
+            appointment_id = request.POST.get('appointment_id')
+            action = request.POST.get('action')
+            appointment = get_object_or_404(Appointment, id=appointment_id)
+            
+            if action == 'confirm':
+                appointment.status = 'CONFIRMED'
+                appointment.save()
+                messages.success(request, 'Appointment confirmed successfully')
+            elif action == 'cancel':
+                appointment.status = 'CANCELLED'
+                appointment.save()
+                messages.success(request, 'Appointment cancelled successfully')
+            elif action == 'complete':
+                appointment.status = 'COMPLETED'
+                appointment.save()
+                messages.success(request, 'Appointment marked as completed')
+            
+            return redirect('manage_appointments_employee')
+        
+        return render(request, 'core/employee/manage_appointments.html', {'appointments': appointments})
+    except Exception as e:
+        logger.error(f"Manage appointments error: {str(e)}")
+        messages.error(request, 'An error occurred while managing appointments.')
+        return redirect('employee_dashboard')
+
+@login_required
+@user_passes_test(is_employee)
+def manage_bills_employee(request):
+    try:
+        bills = Bill.objects.all().select_related('patient')
+        if request.method == 'POST':
+            bill_id = request.POST.get('bill_id')
+            action = request.POST.get('action')
+            bill = get_object_or_404(Bill, id=bill_id)
+            
+            if action == 'mark_paid':
+                bill.paid = True
+                bill.save()
+                messages.success(request, 'Bill marked as paid successfully')
+            elif action == 'delete':
+                bill.delete()
+                messages.success(request, 'Bill deleted successfully')
+            
+            return redirect('manage_bills_employee')
+        
+        return render(request, 'core/employee/manage_bills.html', {'bills': bills})
+    except Exception as e:
+        logger.error(f"Manage bills error: {str(e)}")
+        messages.error(request, 'An error occurred while managing bills.')
+        return redirect('employee_dashboard')
+
+@login_required
+@user_passes_test(is_employee)
+def create_bill(request):
+    try:
+        if request.method == 'POST':
+            patient_id = request.POST.get('patient')
+            amount = request.POST.get('amount')
+            description = request.POST.get('description')
+            
+            patient = get_object_or_404(Patient, id=patient_id)
+            
+            Bill.objects.create(
+                patient=patient,
+                amount=amount,
+                description=description,
+                created_by=request.user
+            )
+            
+            messages.success(request, 'Bill created successfully')
+            return redirect('manage_bills_employee')
+        
+        patients = Patient.objects.all()
+        return render(request, 'core/employee/create_bill.html', {'patients': patients})
+    except Exception as e:
+        logger.error(f"Create bill error: {str(e)}")
+        messages.error(request, 'An error occurred while creating the bill.')
+        return redirect('manage_bills_employee')
+
+@login_required
+@user_passes_test(is_employee)
+def patient_records(request):
+    try:
+        patients = Patient.objects.all().select_related('user')
+        return render(request, 'core/employee/patient_records.html', {'patients': patients})
+    except Exception as e:
+        logger.error(f"Patient records error: {str(e)}")
+        messages.error(request, 'An error occurred while loading patient records.')
+        return redirect('employee_dashboard')
+
+@login_required
+@user_passes_test(is_employee)
+def doctor_schedule(request):
+    try:
+        doctors = Doctor.objects.filter(is_available=True).select_related('user')
+        return render(request, 'core/employee/doctor_schedule.html', {'doctors': doctors})
+    except Exception as e:
+        logger.error(f"Doctor schedule error: {str(e)}")
+        messages.error(request, 'An error occurred while loading doctor schedules.')
+        return redirect('employee_dashboard')
