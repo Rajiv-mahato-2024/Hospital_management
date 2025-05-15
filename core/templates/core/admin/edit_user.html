@@ -1,0 +1,222 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Edit {{ user_type|title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header Section -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Edit {{ user_type|title }}</h1>
+        <p class="text-gray-600">Update {{ user_type }} information</p>
+    </div>
+
+    <!-- Form Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- User Account Information -->
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold text-gray-800">Account Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+                        <input type="text" name="first_name" id="first_name" value="{{ user.first_name }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                        <input type="text" name="last_name" id="last_name" value="{{ user.last_name }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" name="email" id="email" value="{{ user.email }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">New Password (leave blank to keep current)</label>
+                        <input type="password" name="password" id="password"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Role-Specific Information -->
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold text-gray-800">{{ user_type|title }} Information</h2>
+                
+                {% if user_type == 'doctor' %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="specialization" class="block text-sm font-medium text-gray-700">Specialization</label>
+                        <input type="text" name="specialization" id="specialization" value="{{ profile.specialization }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="qualification" class="block text-sm font-medium text-gray-700">Qualification</label>
+                        <input type="text" name="qualification" id="qualification" value="{{ profile.qualification }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="experience" class="block text-sm font-medium text-gray-700">Experience (years)</label>
+                        <input type="number" name="experience" id="experience" value="{{ profile.experience }}" required min="0" max="50"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="consultation_fee" class="block text-sm font-medium text-gray-700">Consultation Fee</label>
+                        <input type="number" name="consultation_fee" id="consultation_fee" value="{{ profile.consultation_fee }}" required min="0" step="0.01"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="max_patients" class="block text-sm font-medium text-gray-700">Max Patients per Day</label>
+                        <input type="number" name="max_patients" id="max_patients" value="{{ profile.max_patients_per_day }}" required min="1" max="50"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="availability" class="block text-sm font-medium text-gray-700">Availability</label>
+                        <select name="availability" id="availability" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="AVAILABLE" {% if profile.availability == 'AVAILABLE' %}selected{% endif %}>Available</option>
+                            <option value="BUSY" {% if profile.availability == 'BUSY' %}selected{% endif %}>Busy</option>
+                            <option value="OFF" {% if profile.availability == 'OFF' %}selected{% endif %}>Off</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if user_type == 'employee' %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="position" class="block text-sm font-medium text-gray-700">Position</label>
+                        <select name="position" id="position" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select Position</option>
+                            <option value="NURSE" {% if profile.position == 'NURSE' %}selected{% endif %}>Nurse</option>
+                            <option value="RECEPTIONIST" {% if profile.position == 'RECEPTIONIST' %}selected{% endif %}>Receptionist</option>
+                            <option value="PHARMACIST" {% if profile.position == 'PHARMACIST' %}selected{% endif %}>Pharmacist</option>
+                            <option value="TECHNICIAN" {% if profile.position == 'TECHNICIAN' %}selected{% endif %}>Lab Technician</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="department" class="block text-sm font-medium text-gray-700">Department</label>
+                        <input type="text" name="department" id="department" value="{{ profile.department }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="shift" class="block text-sm font-medium text-gray-700">Shift</label>
+                        <select name="shift" id="shift" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select Shift</option>
+                            <option value="MORNING" {% if profile.shift == 'MORNING' %}selected{% endif %}>Morning</option>
+                            <option value="AFTERNOON" {% if profile.shift == 'AFTERNOON' %}selected{% endif %}>Afternoon</option>
+                            <option value="NIGHT" {% if profile.shift == 'NIGHT' %}selected{% endif %}>Night</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="availability" class="block text-sm font-medium text-gray-700">Availability</label>
+                        <select name="availability" id="availability" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="AVAILABLE" {% if profile.availability == 'AVAILABLE' %}selected{% endif %}>Available</option>
+                            <option value="BUSY" {% if profile.availability == 'BUSY' %}selected{% endif %}>Busy</option>
+                            <option value="OFF" {% if profile.availability == 'OFF' %}selected{% endif %}>Off</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if user_type == 'patient' %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="date_of_birth" class="block text-sm font-medium text-gray-700">Date of Birth</label>
+                        <input type="date" name="date_of_birth" id="date_of_birth" value="{{ profile.date_of_birth|date:'Y-m-d' }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="gender" class="block text-sm font-medium text-gray-700">Gender</label>
+                        <select name="gender" id="gender" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select Gender</option>
+                            <option value="MALE" {% if profile.gender == 'MALE' %}selected{% endif %}>Male</option>
+                            <option value="FEMALE" {% if profile.gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                            <option value="OTHER" {% if profile.gender == 'OTHER' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="blood_group" class="block text-sm font-medium text-gray-700">Blood Group</label>
+                        <select name="blood_group" id="blood_group" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select Blood Group</option>
+                            <option value="A+" {% if profile.blood_group == 'A+' %}selected{% endif %}>A+</option>
+                            <option value="A-" {% if profile.blood_group == 'A-' %}selected{% endif %}>A-</option>
+                            <option value="B+" {% if profile.blood_group == 'B+' %}selected{% endif %}>B+</option>
+                            <option value="B-" {% if profile.blood_group == 'B-' %}selected{% endif %}>B-</option>
+                            <option value="AB+" {% if profile.blood_group == 'AB+' %}selected{% endif %}>AB+</option>
+                            <option value="AB-" {% if profile.blood_group == 'AB-' %}selected{% endif %}>AB-</option>
+                            <option value="O+" {% if profile.blood_group == 'O+' %}selected{% endif %}>O+</option>
+                            <option value="O-" {% if profile.blood_group == 'O-' %}selected{% endif %}>O-</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="admission_status" class="block text-sm font-medium text-gray-700">Admission Status</label>
+                        <select name="admission_status" id="admission_status" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="OUTPATIENT" {% if profile.admission_status == 'OUTPATIENT' %}selected{% endif %}>Outpatient</option>
+                            <option value="INPATIENT" {% if profile.admission_status == 'INPATIENT' %}selected{% endif %}>Inpatient</option>
+                            <option value="DISCHARGED" {% if profile.admission_status == 'DISCHARGED' %}selected{% endif %}>Discharged</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Contact Information -->
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold text-gray-800">Contact Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="phone_number" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                        <input type="tel" name="phone_number" id="phone_number" value="{{ profile.phone_number }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="emergency_contact" class="block text-sm font-medium text-gray-700">Emergency Contact</label>
+                        <input type="tel" name="emergency_contact" id="emergency_contact" value="{{ profile.emergency_contact }}" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    {% if user_type == 'patient' %}
+                    <div class="md:col-span-2">
+                        <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                        <textarea name="address" id="address" rows="3" required
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ profile.address }}</textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="allergies" class="block text-sm font-medium text-gray-700">Allergies</label>
+                        <textarea name="allergies" id="allergies" rows="2"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ profile.allergies }}</textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="medical_history" class="block text-sm font-medium text-gray-700">Medical History</label>
+                        <textarea name="medical_history" id="medical_history" rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ profile.medical_history }}</textarea>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'manage_'|add:user_type|add:'s' %}" 
+                   class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Update {{ user_type|title }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

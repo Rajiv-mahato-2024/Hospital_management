@@ -24,9 +24,7 @@ urlpatterns = [
     path('admin/doctors/', views.manage_doctors, name='manage_doctors'),
     path('admin/employees/', views.manage_employees, name='manage_employees'),
     path('admin/patients/', views.manage_patients, name='manage_patients'),
-    path('admin/appointments/', views.manage_appointments, name='manage_appointments'),
-    path('admin/bills/', views.manage_bills, name='manage_bills'),
-    path('admin/reports/', views.system_reports, name='system_reports'),
+    path('admin/admins/', views.manage_admins, name='manage_admins'),
     
     # Employee URLs
     path('employee/dashboard/', views.employee_dashboard, name='employee_dashboard'),

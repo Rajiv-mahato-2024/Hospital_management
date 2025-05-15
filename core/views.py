@@ -22,6 +22,7 @@ import re
 from .schemas import PatientCreate, DoctorCreate, EmployeeCreate
 from .utils import ErrorHandler, DatabaseHandler, SecurityHandler
 from functools import wraps
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
 logger = logging.getLogger(__name__)
 
@@ -694,18 +695,65 @@ def appointment_detail(request, appointment_id):
 @user_passes_test(is_admin)
 def admin_dashboard(request):
     try:
+        # Get date range for analytics
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=30)
+
         context = {
+            # Basic Statistics
             'total_patients': Patient.objects.count(),
             'total_doctors': Doctor.objects.count(),
             'total_employees': Employee.objects.count(),
             'total_appointments': Appointment.objects.count(),
             'total_bills': Bill.objects.count(),
-            'revenue': Bill.objects.filter(paid=True).aggregate(
+            'revenue': Bill.objects.filter(payment_status='PAID').aggregate(
                 total=Sum('amount')
             )['total'] or 0,
+
+            # Recent Activity
             'recent_appointments': Appointment.objects.all().order_by('-created_at')[:5],
             'recent_bills': Bill.objects.all().order_by('-created_at')[:5],
+
+            # Analytics Data
+            'patient_stats': {
+                'new_patients': Patient.objects.filter(
+                    user__date_joined__date__range=[start_date, end_date]
+                ).count(),
+                'active_patients': Patient.objects.filter(
+                    appointment__appointment_date__range=[start_date, end_date]
+                ).distinct().count(),
+            },
+            'appointment_stats': {
+                'scheduled': Appointment.objects.filter(
+                    appointment_date__range=[start_date, end_date],
+                    status='SCHEDULED'
+                ).count(),
+                'completed': Appointment.objects.filter(
+                    appointment_date__range=[start_date, end_date],
+                    status='COMPLETED'
+                ).count(),
+                'cancelled': Appointment.objects.filter(
+                    appointment_date__range=[start_date, end_date],
+                    status='CANCELLED'
+                ).count(),
+            },
+            'revenue_stats': {
+                'total': Bill.objects.filter(
+                    created_at__date__range=[start_date, end_date],
+                    payment_status='PAID'
+                ).aggregate(total=Sum('amount'))['total'] or 0,
+                'pending': Bill.objects.filter(
+                    created_at__date__range=[start_date, end_date],
+                    payment_status='PENDING'
+                ).aggregate(total=Sum('amount'))['total'] or 0,
+            },
+            'staff_stats': {
+                'doctors': Doctor.objects.filter(is_available=True).count(),
+                'nurses': Employee.objects.filter(position='NURSE').count(),
+                'technicians': Employee.objects.filter(position='TECHNICIAN').count(),
+            },
         }
+
         return render(request, 'core/admin/dashboard.html', context)
     except Exception as e:
         logger.error(f"Admin dashboard error: {str(e)}")
@@ -717,25 +765,14 @@ def admin_dashboard(request):
 def manage_doctors(request):
     try:
         doctors = Doctor.objects.all().select_related('user')
-        if request.method == 'POST':
-            doctor_id = request.POST.get('doctor_id')
-            action = request.POST.get('action')
-            doctor = get_object_or_404(Doctor, id=doctor_id)
-            
-            if action == 'toggle_availability':
-                doctor.is_available = not doctor.is_available
-                doctor.save()
-                messages.success(request, f'Doctor availability updated successfully')
-            elif action == 'delete':
-                doctor.user.delete()  # This will also delete the doctor profile due to CASCADE
-                messages.success(request, 'Doctor deleted successfully')
-            
-            return redirect('manage_doctors')
-        
-        return render(request, 'core/admin/manage_doctors.html', {'doctors': doctors})
+        context = {
+            'doctors': doctors,
+            'title': 'Manage Doctors'
+        }
+        return render(request, 'core/admin/manage_doctors.html', context)
     except Exception as e:
-        logger.error(f"Manage doctors error: {str(e)}")
-        messages.error(request, 'An error occurred while managing doctors.')
+        logger.error(f"Error in manage_doctors: {str(e)}")
+        messages.error(request, 'An error occurred while loading doctors.')
         return redirect('admin_dashboard')
 
 @login_required
@@ -743,21 +780,14 @@ def manage_doctors(request):
 def manage_employees(request):
     try:
         employees = Employee.objects.all().select_related('user')
-        if request.method == 'POST':
-            employee_id = request.POST.get('employee_id')
-            action = request.POST.get('action')
-            employee = get_object_or_404(Employee, id=employee_id)
-            
-            if action == 'delete':
-                employee.user.delete()  # This will also delete the employee profile due to CASCADE
-                messages.success(request, 'Employee deleted successfully')
-            
-            return redirect('manage_employees')
-        
-        return render(request, 'core/admin/manage_employees.html', {'employees': employees})
+        context = {
+            'employees': employees,
+            'title': 'Manage Staff'
+        }
+        return render(request, 'core/admin/manage_employees.html', context)
     except Exception as e:
-        logger.error(f"Manage employees error: {str(e)}")
-        messages.error(request, 'An error occurred while managing employees.')
+        logger.error(f"Error in manage_employees: {str(e)}")
+        messages.error(request, 'An error occurred while loading staff.')
         return redirect('admin_dashboard')
 
 @login_required
@@ -765,114 +795,172 @@ def manage_employees(request):
 def manage_patients(request):
     try:
         patients = Patient.objects.all().select_related('user')
-        return render(request, 'core/admin/manage_patients.html', {'patients': patients})
+        context = {
+            'patients': patients,
+            'title': 'Manage Patients'
+        }
+        return render(request, 'core/admin/manage_patients.html', context)
     except Exception as e:
-        logger.error(f"Manage patients error: {str(e)}")
-        messages.error(request, 'An error occurred while managing patients.')
+        logger.error(f"Error in manage_patients: {str(e)}")
+        messages.error(request, 'An error occurred while loading patients.')
         return redirect('admin_dashboard')
 
 @login_required
 @user_passes_test(is_admin)
-def manage_appointments(request):
+def manage_admins(request):
     try:
-        appointments = Appointment.objects.all().select_related('patient', 'doctor')
-        return render(request, 'core/admin/manage_appointments.html', {'appointments': appointments})
+        admins = User.objects.filter(is_staff=True).exclude(id=request.user.id)
+        context = {
+            'admins': admins,
+            'title': 'Manage Administrators'
+        }
+        return render(request, 'core/admin/manage_admins.html', context)
     except Exception as e:
-        logger.error(f"Manage appointments error: {str(e)}")
-        messages.error(request, 'An error occurred while managing appointments.')
+        logger.error(f"Error in manage_admins: {str(e)}")
+        messages.error(request, 'An error occurred while loading administrators.')
         return redirect('admin_dashboard')
 
 @login_required
 @user_passes_test(is_admin)
-def manage_bills(request):
+def create_user(request, user_type):
     try:
-        bills = Bill.objects.all().select_related('patient')
-        return render(request, 'core/admin/manage_bills.html', {'bills': bills})
-    except Exception as e:
-        logger.error(f"Manage bills error: {str(e)}")
-        messages.error(request, 'An error occurred while managing bills.')
-        return redirect('admin_dashboard')
-
-@login_required
-@user_passes_test(is_admin)
-def system_reports(request):
-    try:
-        # Get date range from request
-        start_date = request.GET.get('start_date')
-        end_date = request.GET.get('end_date')
-        
-        try:
-            if start_date and end_date:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        if request.method == 'POST':
+            form = UserCreationForm(request.POST)
+            if form.is_valid():
+                user = form.save()
                 
-                # Validate date range
-                if start_date > end_date:
-                    raise ValidationError('Start date cannot be after end date')
-                if end_date > timezone.now().date():
-                    raise ValidationError('End date cannot be in the future')
-            else:
-                # Default to last 30 days
-                end_date = timezone.now().date()
-                start_date = end_date - timedelta(days=30)
-        except ValueError:
-            return render(request, 'core/error.html', {
-                'error_title': 'Invalid Date Format',
-                'error_message': 'The provided date format is invalid.',
-                'error_details': 'Please use the format YYYY-MM-DD for dates.'
-            })
-        except ValidationError as e:
-            return render(request, 'core/error.html', {
-                'error_title': 'Invalid Date Range',
-                'error_message': 'The provided date range is invalid.',
-                'error_details': str(e)
-            })
-        
-        try:
-            # Generate reports
-            context = {
-                'start_date': start_date,
-                'end_date': end_date,
-                'appointments': Appointment.objects.filter(
-                    appointment_date__range=[start_date, end_date]
-                ).count(),
-                'revenue': Bill.objects.filter(
-                    created_at__date__range=[start_date, end_date],
-                    payment_status='PAID'
-                ).aggregate(total=Sum('amount'))['total'] or 0,
-                'new_patients': Patient.objects.filter(
-                    user__date_joined__date__range=[start_date, end_date]
-                ).count(),
-                'doctor_appointments': Appointment.objects.filter(
-                    appointment_date__range=[start_date, end_date]
-                ).values('doctor__user__first_name', 'doctor__user__last_name').annotate(
-                    count=Count('id')
-                ).order_by('-count')[:5],
-                'monthly_revenue': Bill.objects.filter(
-                    payment_status='PAID'
-                ).annotate(
-                    month=models.functions.TruncMonth('created_at')
-                ).values('month').annotate(
-                    total=Sum('amount')
-                ).order_by('month')[:12],
-            }
-            
-            return render(request, 'core/admin/system_reports.html', context)
-        except Exception as e:
-            logger.error(f"Report generation error: {str(e)}")
-            return render(request, 'core/error.html', {
-                'error_title': 'Report Generation Error',
-                'error_message': 'Failed to generate system reports.',
-                'error_details': str(e)
-            })
-            
+                if user_type == 'doctor':
+                    Doctor.objects.create(
+                        user=user,
+                        specialization=request.POST.get('specialization'),
+                        experience=request.POST.get('experience'),
+                        qualification=request.POST.get('qualification'),
+                        phone_number=request.POST.get('phone_number'),
+                        emergency_contact=request.POST.get('emergency_contact'),
+                        consultation_fee=request.POST.get('consultation_fee')
+                    )
+                elif user_type == 'employee':
+                    Employee.objects.create(
+                        user=user,
+                        position=request.POST.get('position'),
+                        department=request.POST.get('department'),
+                        phone_number=request.POST.get('phone_number'),
+                        emergency_contact=request.POST.get('emergency_contact'),
+                        shift=request.POST.get('shift')
+                    )
+                elif user_type == 'patient':
+                    Patient.objects.create(
+                        user=user,
+                        date_of_birth=request.POST.get('date_of_birth'),
+                        gender=request.POST.get('gender'),
+                        blood_group=request.POST.get('blood_group'),
+                        address=request.POST.get('address'),
+                        phone_number=request.POST.get('phone_number'),
+                        emergency_contact=request.POST.get('emergency_contact')
+                    )
+                elif user_type == 'admin':
+                    user.is_staff = True
+                    user.save()
+
+                messages.success(request, f'{user_type.title()} created successfully.')
+                return redirect(f'manage_{user_type}s')
+        else:
+            form = UserCreationForm()
+
+        context = {
+            'form': form,
+            'user_type': user_type,
+            'title': f'Create {user_type.title()}'
+        }
+        return render(request, 'core/admin/create_user.html', context)
     except Exception as e:
-        logger.error(f"System reports error: {str(e)}")
-        return render(request, 'core/error.html', {
-            'error_title': 'System Reports Error',
-            'error_message': 'An error occurred while accessing system reports.',
-            'error_details': str(e)
-        })
+        logger.error(f"Error in create_user: {str(e)}")
+        messages.error(request, f'An error occurred while creating {user_type}.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def edit_user(request, user_type, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+        if request.method == 'POST':
+            form = UserChangeForm(request.POST, instance=user)
+            if form.is_valid():
+                user = form.save()
+                
+                if user_type == 'doctor':
+                    doctor = Doctor.objects.get(user=user)
+                    doctor.specialization = request.POST.get('specialization')
+                    doctor.experience = request.POST.get('experience')
+                    doctor.qualification = request.POST.get('qualification')
+                    doctor.phone_number = request.POST.get('phone_number')
+                    doctor.emergency_contact = request.POST.get('emergency_contact')
+                    doctor.consultation_fee = request.POST.get('consultation_fee')
+                    doctor.save()
+                elif user_type == 'employee':
+                    employee = Employee.objects.get(user=user)
+                    employee.position = request.POST.get('position')
+                    employee.department = request.POST.get('department')
+                    employee.phone_number = request.POST.get('phone_number')
+                    employee.emergency_contact = request.POST.get('emergency_contact')
+                    employee.shift = request.POST.get('shift')
+                    employee.save()
+                elif user_type == 'patient':
+                    patient = Patient.objects.get(user=user)
+                    patient.date_of_birth = request.POST.get('date_of_birth')
+                    patient.gender = request.POST.get('gender')
+                    patient.blood_group = request.POST.get('blood_group')
+                    patient.address = request.POST.get('address')
+                    patient.phone_number = request.POST.get('phone_number')
+                    patient.emergency_contact = request.POST.get('emergency_contact')
+                    patient.save()
+                elif user_type == 'admin':
+                    user.is_staff = True
+                    user.save()
+
+                messages.success(request, f'{user_type.title()} updated successfully.')
+                return redirect(f'manage_{user_type}s')
+        else:
+            form = UserChangeForm(instance=user)
+
+        context = {
+            'form': form,
+            'user_type': user_type,
+            'user': user,
+            'title': f'Edit {user_type.title()}'
+        }
+        return render(request, 'core/admin/edit_user.html', context)
+    except User.DoesNotExist:
+        messages.error(request, f'{user_type.title()} not found.')
+        return redirect('admin_dashboard')
+    except Exception as e:
+        logger.error(f"Error in edit_user: {str(e)}")
+        messages.error(request, f'An error occurred while editing {user_type}.')
+        return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def delete_user(request, user_type, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+        if request.method == 'POST':
+            user.delete()
+            messages.success(request, f'{user_type.title()} deleted successfully.')
+            return redirect(f'manage_{user_type}s')
+        
+        context = {
+            'user_type': user_type,
+            'user': user,
+            'title': f'Delete {user_type.title()}'
+        }
+        return render(request, 'core/admin/delete_user.html', context)
+    except User.DoesNotExist:
+        messages.error(request, f'{user_type.title()} not found.')
+        return redirect('admin_dashboard')
+    except Exception as e:
+        logger.error(f"Error in delete_user: {str(e)}")
+        messages.error(request, f'An error occurred while deleting {user_type}.')
+        return redirect('admin_dashboard')
 
 @login_required
 @user_passes_test(is_employee)
