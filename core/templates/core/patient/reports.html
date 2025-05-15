@@ -1,0 +1,115 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Patient Reports{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold">Medical Reports</h1>
+        <div class="space-x-4">
+            <a href="{% url 'patient_detail' patient.id %}" 
+               class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                Back to Patient
+            </a>
+            {% if user.doctor %}
+            <a href="{% url 'add_medical_record' patient.id %}" 
+               class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Add New Record
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Medical Records Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-2">Total Records</h3>
+            <p class="text-3xl font-bold text-gray-800">{{ medical_records.count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-2">Last Visit</h3>
+            <p class="text-3xl font-bold text-gray-800">
+                {{ last_visit|date:"M d, Y"|default:"No visits" }}
+            </p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-2">Next Follow-up</h3>
+            <p class="text-3xl font-bold text-blue-600">
+                {{ next_follow_up|date:"M d, Y"|default:"No follow-up" }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Medical Records -->
+    <div class="space-y-6">
+        {% for record in medical_records %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-xl font-semibold">Visit on {{ record.created_at|date:"F j, Y" }}</h3>
+                        <p class="text-gray-600">Dr. {{ record.doctor.user.get_full_name }}</p>
+                    </div>
+                    {% if user.doctor %}
+                    <div class="space-x-2">
+                        <a href="{% url 'edit_medical_record' record.id %}" 
+                           class="text-blue-600 hover:text-blue-900">Edit</a>
+                        <a href="{% url 'delete_medical_record' record.id %}" 
+                           class="text-red-600 hover:text-red-900">Delete</a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold mb-2">Diagnosis</h4>
+                        <p class="text-gray-700">{{ record.diagnosis }}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-2">Prescription</h4>
+                        <p class="text-gray-700">{{ record.prescription }}</p>
+                    </div>
+                </div>
+
+                {% if record.notes %}
+                <div class="mt-4">
+                    <h4 class="font-semibold mb-2">Additional Notes</h4>
+                    <p class="text-gray-700">{{ record.notes }}</p>
+                </div>
+                {% endif %}
+
+                {% if record.follow_up_date %}
+                <div class="mt-4">
+                    <h4 class="font-semibold mb-2">Follow-up Date</h4>
+                    <p class="text-blue-600">{{ record.follow_up_date|date:"F j, Y" }}</p>
+                </div>
+                {% endif %}
+
+                {% if record.attachments.exists %}
+                <div class="mt-4">
+                    <h4 class="font-semibold mb-2">Attachments</h4>
+                    <div class="flex flex-wrap gap-2">
+                        {% for attachment in record.attachments.all %}
+                        <a href="{{ attachment.file.url }}" 
+                           class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-800 hover:bg-gray-200">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                            </svg>
+                            {{ attachment.filename }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">
+            No medical records found.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,133 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Patient Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold">Patient Details</h1>
+        <div class="space-x-4">
+            <a href="{% url 'patient_bills' patient.id %}" 
+               class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                View Bills
+            </a>
+            <a href="{% url 'patient_reports' patient.id %}" 
+               class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                View Reports
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Patient Information -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Personal Information</h2>
+            <div class="space-y-4">
+                <div>
+                    <span class="font-medium">Name:</span>
+                    <span>{{ patient.user.get_full_name }}</span>
+                </div>
+                <div>
+                    <span class="font-medium">Age:</span>
+                    <span>{{ patient.age }} years</span>
+                </div>
+                <div>
+                    <span class="font-medium">Gender:</span>
+                    <span>{{ patient.get_gender_display }}</span>
+                </div>
+                <div>
+                    <span class="font-medium">Blood Group:</span>
+                    <span>{{ patient.get_blood_group_display }}</span>
+                </div>
+                <div>
+                    <span class="font-medium">Phone:</span>
+                    <span>{{ patient.phone }}</span>
+                </div>
+                <div>
+                    <span class="font-medium">Address:</span>
+                    <span>{{ patient.address }}</span>
+                </div>
+                <div>
+                    <span class="font-medium">Emergency Contact:</span>
+                    <span>{{ patient.emergency_contact_name }} ({{ patient.emergency_contact }})</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Medical Information -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Medical Information</h2>
+            <div class="space-y-4">
+                <div>
+                    <span class="font-medium">Medical History:</span>
+                    <p class="mt-2">{{ patient.medical_history|default:"No medical history recorded" }}</p>
+                </div>
+                <div>
+                    <span class="font-medium">Allergies:</span>
+                    <p class="mt-2">{{ patient.allergies|default:"No known allergies" }}</p>
+                </div>
+                <div>
+                    <span class="font-medium">Admission Status:</span>
+                    {% if patient.is_admitted %}
+                    <span class="text-green-600">Currently Admitted</span>
+                    <div class="mt-2">
+                        <p>Room: {{ patient.room_number }}</p>
+                        <p>Bed: {{ patient.bed_number }}</p>
+                        <p>Admission Date: {{ patient.admission_date|date:"F j, Y" }}</p>
+                    </div>
+                    {% else %}
+                    <span class="text-gray-600">Not Admitted</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Appointments -->
+    <div class="mt-8">
+        <h2 class="text-2xl font-semibold mb-4">Recent Appointments</h2>
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Doctor</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for appointment in appointments %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {{ appointment.appointment_date|date:"F j, Y" }} at {{ appointment.appointment_time|time:"g:i A" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            Dr. {{ appointment.doctor.user.get_full_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                       {% if appointment.status == 'COMPLETED' %}bg-green-100 text-green-800
+                                       {% elif appointment.status == 'CANCELLED' %}bg-red-100 text-red-800
+                                       {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {{ appointment.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {{ appointment.reason }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                            No appointments found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

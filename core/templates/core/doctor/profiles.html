@@ -1,0 +1,40 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Doctor Profiles{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Our Doctors</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for doctor in doctors %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6">
+                <h2 class="text-xl font-semibold mb-2">Dr. {{ doctor.user.get_full_name }}</h2>
+                <div class="text-gray-600 mb-4">
+                    <p><span class="font-medium">Specialization:</span> {{ doctor.get_specialization_display }}</p>
+                    <p><span class="font-medium">Experience:</span> {{ doctor.experience }} years</p>
+                    <p><span class="font-medium">Qualification:</span> {{ doctor.qualification }}</p>
+                </div>
+                <div class="flex justify-between items-center">
+                    <a href="{% url 'doctor_detail' doctor.id %}" 
+                       class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        View Profile
+                    </a>
+                    {% if doctor.is_available %}
+                    <span class="text-green-500">Available</span>
+                    {% else %}
+                    <span class="text-red-500">Not Available</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center text-gray-500">
+            No doctors found.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

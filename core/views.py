@@ -1091,3 +1091,131 @@ def doctor_schedule(request):
         logger.error(f"Doctor schedule error: {str(e)}")
         messages.error(request, 'An error occurred while loading doctor schedules.')
         return redirect('employee_dashboard')
+
+@login_required
+def doctor_profiles(request):
+    doctors = Doctor.objects.all().select_related('user')
+    return render(request, 'core/doctor/profiles.html', {
+        'doctors': doctors
+    })
+
+@login_required
+def doctor_detail(request, doctor_id):
+    doctor = get_object_or_404(Doctor, id=doctor_id)
+    return render(request, 'core/doctor/detail.html', {
+        'doctor': doctor
+    })
+
+@login_required
+def employee_list(request):
+    employees = Employee.objects.all().select_related('user')
+    return render(request, 'core/employee/list.html', {
+        'employees': employees
+    })
+
+@login_required
+def employee_detail(request, employee_id):
+    employee = get_object_or_404(Employee, id=employee_id)
+    return render(request, 'core/employee/detail.html', {
+        'employee': employee
+    })
+
+@login_required
+def employee_edit(request, employee_id):
+    employee = get_object_or_404(Employee, id=employee_id)
+    if request.method == 'POST':
+        # Update employee details
+        employee.phone = request.POST.get('phone')
+        employee.address = request.POST.get('address')
+        employee.position = request.POST.get('position')
+        employee.department = request.POST.get('department')
+        employee.emergency_contact = request.POST.get('emergency_contact')
+        employee.shift = request.POST.get('shift')
+        employee.save()
+        messages.success(request, 'Employee details updated successfully.')
+        return redirect('employee_detail', employee_id=employee.id)
+    return render(request, 'core/employee/edit.html', {
+        'employee': employee
+    })
+
+@login_required
+def employee_delete(request, employee_id):
+    employee = get_object_or_404(Employee, id=employee_id)
+    if request.method == 'POST':
+        employee.delete()
+        messages.success(request, 'Employee deleted successfully.')
+        return redirect('employee_list')
+    return render(request, 'core/employee/delete.html', {
+        'employee': employee
+    })
+
+@login_required
+def book_appointment(request):
+    if request.method == 'POST':
+        # Handle appointment booking
+        doctor_id = request.POST.get('doctor')
+        appointment_date = request.POST.get('appointment_date')
+        appointment_time = request.POST.get('appointment_time')
+        reason = request.POST.get('reason')
+        
+        doctor = get_object_or_404(Doctor, id=doctor_id)
+        patient = request.user.patient
+        
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            appointment_date=appointment_date,
+            appointment_time=appointment_time,
+            reason=reason,
+            created_by=request.user
+        )
+        messages.success(request, 'Appointment booked successfully.')
+        return redirect('appointment_detail', appointment_id=appointment.id)
+    
+    doctors = Doctor.objects.filter(is_available=True)
+    return render(request, 'core/appointment/book.html', {
+        'doctors': doctors
+    })
+
+@login_required
+def patient_search(request):
+    if request.method == 'POST':
+        patient_id = request.POST.get('patient_id')
+        try:
+            patient = Patient.objects.get(id=patient_id)
+            return redirect('patient_detail', patient_id=patient.id)
+        except Patient.DoesNotExist:
+            messages.error(request, 'Patient not found.')
+    return render(request, 'core/patient/search.html')
+
+@login_required
+def patient_detail(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    appointments = patient.appointments.all().order_by('-appointment_date')
+    bills = patient.bills.all().order_by('-created_at')
+    medical_records = patient.medical_records.all().order_by('-created_at')
+    
+    return render(request, 'core/patient/detail.html', {
+        'patient': patient,
+        'appointments': appointments,
+        'bills': bills,
+        'medical_records': medical_records
+    })
+
+@login_required
+def patient_bills(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    bills = patient.bills.all().order_by('-created_at')
+    return render(request, 'core/patient/bills.html', {
+        'patient': patient,
+        'bills': bills
+    })
+
+@login_required
+def patient_reports(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    medical_records = patient.medical_records.all().order_by('-created_at')
+    return render(request, 'core/patient/reports.html', {
+        'patient': patient,
+        'medical_records': medical_records
+    })

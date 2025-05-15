@@ -1,0 +1,108 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Patient Bills{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold">Billing Information</h1>
+        <div class="space-x-4">
+            <a href="{% url 'patient_detail' patient.id %}" 
+               class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                Back to Patient
+            </a>
+            {% if user.employee or user.adminprofile %}
+            <a href="{% url 'create_bill' %}" 
+               class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Create New Bill
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Billing Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-2">Total Bills</h3>
+            <p class="text-3xl font-bold text-gray-800">{{ bills.count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-2">Total Amount</h3>
+            <p class="text-3xl font-bold text-gray-800">${{ total_amount|default:"0.00" }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-2">Pending Amount</h3>
+            <p class="text-3xl font-bold text-red-600">${{ pending_amount|default:"0.00" }}</p>
+        </div>
+    </div>
+
+    <!-- Bills Table -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bill ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for bill in bills %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ bill.bill_id }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ bill.created_at|date:"F j, Y" }}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-gray-900">{{ bill.description }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${{ bill.amount }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                   {% if bill.payment_status == 'PAID' %}bg-green-100 text-green-800
+                                   {% elif bill.payment_status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                                   {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ bill.get_payment_status_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        {% if user.employee or user.adminprofile %}
+                            {% if bill.payment_status == 'PENDING' %}
+                            <form method="post" action="{% url 'mark_bill_paid' bill.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="text-green-600 hover:text-green-900 mr-3">
+                                    Mark as Paid
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{% url 'edit_bill' bill.id %}" 
+                               class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+                            <a href="{% url 'delete_bill' bill.id %}" 
+                               class="text-red-600 hover:text-red-900">Delete</a>
+                        {% else %}
+                            <a href="{% url 'view_bill' bill.id %}" 
+                               class="text-blue-600 hover:text-blue-900">View Details</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                        No bills found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 
