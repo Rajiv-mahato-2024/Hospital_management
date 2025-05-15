@@ -4,18 +4,53 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Count, Sum
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_protect
+from django.core.paginator import Paginator
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_control
+from django.views.decorators.vary import vary_on_cookie
 from .models import Patient, Doctor, Appointment, MedicalRecord, Bill, Employee, AdminProfile
 from datetime import datetime, timedelta, date
 import logging
 import re
 from .schemas import PatientCreate, DoctorCreate, EmployeeCreate
 from .utils import ErrorHandler, DatabaseHandler, SecurityHandler
+from functools import wraps
 
 logger = logging.getLogger(__name__)
+
+def rate_limit(limit=5, period=60):
+    """Rate limiting decorator"""
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped_view(request, *args, **kwargs):
+            if not hasattr(request, 'session'):
+                request.session = {}
+
+            now = timezone.now().isoformat()
+            key = f'rate_limit_{view_func.__name__}'
+
+            if key in request.session:
+                last_time_str, count = request.session[key]
+                last_time = datetime.fromisoformat(last_time_str)
+                if (datetime.fromisoformat(now) - last_time).seconds < period:
+                    if count >= limit:
+                        return HttpResponseForbidden('Rate limit exceeded')
+                    request.session[key] = (last_time_str, count + 1)
+                else:
+                    request.session[key] = (now, 1)
+            else:
+                request.session[key] = (now, 1)
+
+            return view_func(request, *args, **kwargs)
+        return wrapped_view
+    return decorator
 
 def is_admin(user):
     return hasattr(user, 'adminprofile')
@@ -42,10 +77,22 @@ def validate_password(password):
         raise ValidationError('Password must contain at least one lowercase letter')
     if not re.search(r'[0-9]', password):
         raise ValidationError('Password must contain at least one number')
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        raise ValidationError('Password must contain at least one special character')
 
+@csrf_protect
+@cache_control(private=True)
+@vary_on_cookie
 def home(request):
-    return render(request, 'core/home.html')
+    try:
+        return render(request, 'core/home.html')
+    except Exception as e:
+        logger.error(f"Error in home view: {str(e)}")
+        messages.error(request, 'An error occurred. Please try again later.')
+        return render(request, 'core/error.html')
 
+@csrf_protect
+@rate_limit(limit=5, period=300)  # 5 attempts per 5 minutes
 @transaction.atomic
 def register(request):
     if request.method == 'POST':
@@ -91,7 +138,10 @@ def register(request):
                 if user_type == 'patient':
                     form_data.update({
                         'date_of_birth': request.POST.get('date_of_birth'),
-                        'blood_group': request.POST.get('blood_group')
+                        'blood_group': request.POST.get('blood_group'),
+                        'emergency_contact': request.POST.get('emergency_contact', '').strip(),
+                        'emergency_contact_name': request.POST.get('emergency_contact_name', '').strip(),
+                        'allergies': request.POST.get('allergies', '').strip()
                     })
                     validated_data = PatientCreate(**form_data)
                     
@@ -110,7 +160,10 @@ def register(request):
                         phone=validated_data.phone,
                         address=validated_data.address,
                         date_of_birth=validated_data.date_of_birth,
-                        blood_group=validated_data.blood_group
+                        blood_group=validated_data.blood_group,
+                        emergency_contact=validated_data.emergency_contact,
+                        emergency_contact_name=validated_data.emergency_contact_name,
+                        allergies=validated_data.allergies
                     )
 
                 elif user_type == 'doctor':
@@ -195,111 +248,132 @@ def register(request):
 
     return render(request, 'core/register.html')
 
+@csrf_protect
+@rate_limit(limit=5, period=300)  # 5 attempts per 5 minutes
 def login_view(request):
     if request.method == 'POST':
         try:
-            username = request.POST['username']
-            password = request.POST['password']
-            user = authenticate(username=username, password=password)
-
+            username = request.POST.get('username', '').strip()
+            password = request.POST.get('password', '').strip()
+            
+            if not username or not password:
+                messages.error(request, 'Please provide both username and password')
+                return render(request, 'core/login.html')
+            
+            user = authenticate(request, username=username, password=password)
+            
             if user is not None:
-                login(request, user)
-                messages.success(request, 'Login successful')
-                return redirect('dashboard')
+                if user.is_active:
+                    login(request, user)
+                    messages.success(request, 'Login successful!')
+                    return redirect('dashboard')
+                else:
+                    messages.error(request, 'Your account has been disabled. Please contact support.')
             else:
-                messages.error(request, 'Invalid credentials')
+                messages.error(request, 'Invalid username or password')
+                
         except Exception as e:
-            logger.error(f"Login error: {str(e)}")
-            messages.error(request, 'An error occurred during login. Please try again.')
-
+            error_response = ErrorHandler.handle_error(e, 'login')
+            messages.error(request, error_response['message'])
+            
     return render(request, 'core/login.html')
 
 @login_required
+@csrf_protect
 def logout_view(request):
-    logout(request)
-    messages.success(request, 'Logged out successfully')
+    try:
+        logout(request)
+        messages.success(request, 'You have been successfully logged out.')
+    except Exception as e:
+        logger.error(f"Error during logout: {str(e)}")
+        messages.error(request, 'An error occurred during logout.')
     return redirect('home')
 
 @login_required
+@cache_control(private=True)
+@vary_on_cookie
 def dashboard(request):
     try:
         context = {}
-        
+        today = timezone.now().date()
+
         if hasattr(request.user, 'patient'):
-            appointments = Appointment.objects.filter(
-                patient=request.user.patient,
-                appointment_date__gte=timezone.now().date()
-            ).order_by('appointment_date', 'appointment_time')
-            
-            medical_records = MedicalRecord.objects.filter(
-                patient=request.user.patient
-            ).order_by('-created_at')
-            
-            bills = Bill.objects.filter(
-                patient=request.user.patient
-            ).order_by('-created_at')
-            
+            # Patient Dashboard
+            patient = request.user.patient
             context.update({
-                'appointments': appointments[:5],
-                'medical_records': medical_records[:5],
-                'bills': bills[:5],
-                'total_bills': bills.count(),
-                'paid_bills': bills.filter(paid=True).count(),
-                'pending_bills': bills.filter(paid=False).count(),
+                'upcoming_appointments_count': Appointment.objects.filter(
+                    patient=patient,
+                    appointment_date__gte=today,
+                    status='SCHEDULED'
+                ).count(),
+                'medical_records_count': MedicalRecord.objects.filter(patient=patient).count(),
+                'pending_bills_count': Bill.objects.filter(
+                    patient=patient,
+                    payment_status='PENDING'
+                ).count(),
+                'total_bills_count': Bill.objects.filter(patient=patient).count(),
+                'recent_appointments': Appointment.objects.filter(
+                    patient=patient
+                ).order_by('-appointment_date', '-appointment_time')[:5]
             })
-        
+
         elif hasattr(request.user, 'doctor'):
-            today = timezone.now().date()
-            appointments = Appointment.objects.filter(
-                doctor=request.user.doctor,
-                appointment_date=today
-            ).order_by('appointment_time')
-            
+            # Doctor Dashboard
+            doctor = request.user.doctor
             context.update({
-                'today_appointments': appointments,
-                'total_patients': Appointment.objects.filter(
-                    doctor=request.user.doctor
-                ).values('patient').distinct().count(),
-                'total_appointments': Appointment.objects.filter(
-                    doctor=request.user.doctor
+                'today_appointments_count': Appointment.objects.filter(
+                    doctor=doctor,
+                    appointment_date=today,
+                    status='SCHEDULED'
                 ).count(),
-                'completed_appointments': Appointment.objects.filter(
-                    doctor=request.user.doctor,
-                    status='COMPLETED'
-                ).count(),
+                'total_patients_count': Patient.objects.filter(
+                    appointment__doctor=doctor
+                ).distinct().count(),
+                'medical_records_count': MedicalRecord.objects.filter(doctor=doctor).count(),
+                'today_appointments': Appointment.objects.filter(
+                    doctor=doctor,
+                    appointment_date=today
+                ).order_by('appointment_time')
             })
-        
+
         elif hasattr(request.user, 'employee'):
-            today = timezone.now().date()
-            appointments = Appointment.objects.filter(
-                appointment_date=today
-            ).order_by('appointment_time')
-            
+            # Employee Dashboard
             context.update({
-                'today_appointments': appointments,
-                'total_appointments': Appointment.objects.count(),
-                'total_patients': Patient.objects.count(),
-                'total_doctors': Doctor.objects.count(),
+                'today_appointments_count': Appointment.objects.filter(
+                    appointment_date=today,
+                    status='SCHEDULED'
+                ).count(),
+                'pending_bills_count': Bill.objects.filter(
+                    payment_status='PENDING'
+                ).count(),
+                'total_patients_count': Patient.objects.count(),
+                'total_doctors_count': Doctor.objects.count(),
+                'recent_activities': []  # You can implement an activity log system later
             })
-        
+
         elif hasattr(request.user, 'adminprofile'):
+            # Admin Dashboard
             context.update({
-                'total_patients': Patient.objects.count(),
-                'total_doctors': Doctor.objects.count(),
-                'total_employees': Employee.objects.count(),
-                'total_appointments': Appointment.objects.count(),
-                'total_bills': Bill.objects.count(),
-                'revenue': Bill.objects.filter(paid=True).aggregate(
-                    total=models.Sum('amount')
-                )['total'] or 0,
+                'total_users_count': User.objects.count(),
+                'total_doctors_count': Doctor.objects.count(),
+                'total_patients_count': Patient.objects.count(),
+                'total_employees_count': Employee.objects.count(),
+                'total_appointments_count': Appointment.objects.count(),
+                'total_medical_records_count': MedicalRecord.objects.count(),
+                'total_bills_count': Bill.objects.count(),
+                'total_revenue': Bill.objects.filter(
+                    payment_status='PAID'
+                ).aggregate(total=Sum('amount'))['total'] or 0
             })
-        
+
         return render(request, 'core/dashboard.html', context)
-    
+
     except Exception as e:
-        logger.error(f"Dashboard error: {str(e)}")
-        messages.error(request, 'An error occurred while loading the dashboard.')
-        return redirect('home')
+        return render(request, 'core/error.html', {
+            'error_title': 'Dashboard Error',
+            'error_message': 'An error occurred while loading the dashboard.',
+            'error_details': str(e)
+        })
 
 @login_required
 def profile_view(request):
@@ -317,27 +391,36 @@ def profile_view(request):
             profile = user.adminprofile
 
         if request.method == 'POST':
-            # Update user information
-            user.first_name = request.POST.get('first_name')
-            user.last_name = request.POST.get('last_name')
-            user.email = request.POST.get('email')
-            user.save()
+            try:
+                # Update user information
+                user.first_name = request.POST.get('first_name')
+                user.last_name = request.POST.get('last_name')
+                user.email = request.POST.get('email')
+                user.save()
 
-            # Update profile information
-            if profile:
-                profile.phone = request.POST.get('phone')
-                profile.address = request.POST.get('address')
+                # Update profile information
+                if profile:
+                    profile.phone = request.POST.get('phone')
+                    profile.address = request.POST.get('address')
 
-                if hasattr(user, 'doctor'):
-                    profile.specialization = request.POST.get('specialization')
-                    profile.experience = request.POST.get('experience')
-                elif hasattr(user, 'employee'):
-                    profile.position = request.POST.get('position')
+                    if hasattr(user, 'doctor'):
+                        profile.specialization = request.POST.get('specialization')
+                        profile.experience = request.POST.get('experience')
+                    elif hasattr(user, 'employee'):
+                        profile.position = request.POST.get('position')
 
-                profile.save()
-            
-            messages.success(request, 'Profile updated successfully!')
-            return redirect('profile')
+                    profile.save()
+                
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('profile')
+            except Exception as e:
+                logger.error(f"Profile update error: {str(e)}")
+                messages.error(request, 'Failed to update profile. Please try again.')
+                return render(request, 'core/error.html', {
+                    'error_title': 'Profile Update Error',
+                    'error_message': 'Failed to update profile information.',
+                    'error_details': str(e)
+                })
 
         context = {
             'user': user,
@@ -361,74 +444,103 @@ def profile_view(request):
     
     except Exception as e:
         logger.error(f"Profile error: {str(e)}")
-        messages.error(request, 'An error occurred while loading the profile.')
-        return redirect('dashboard')
+        return render(request, 'core/error.html', {
+            'error_title': 'Profile Error',
+            'error_message': 'An error occurred while loading the profile.',
+            'error_details': str(e)
+        })
 
 @login_required
 @user_passes_test(is_patient)
 def book_appointment(request):
     try:
         if request.method == 'POST':
-            doctor = get_object_or_404(Doctor, id=request.POST['doctor'])
-            appointment_date = request.POST['appointment_date']
-            appointment_time = request.POST['appointment_time']
-            reason = request.POST['reason']
+            try:
+                doctor = get_object_or_404(Doctor, id=request.POST['doctor'])
+                appointment_date = request.POST['appointment_date']
+                appointment_time = request.POST['appointment_time']
+                reason = request.POST['reason']
 
-            # Validate appointment date
-            if datetime.strptime(appointment_date, '%Y-%m-%d').date() < timezone.now().date():
-                messages.error(request, 'Cannot book appointments for past dates')
-                return redirect('book_appointment')
+                # Validate appointment date
+                if datetime.strptime(appointment_date, '%Y-%m-%d').date() < timezone.now().date():
+                    messages.error(request, 'Cannot book appointments for past dates')
+                    return redirect('book_appointment')
 
-            # Check if doctor is available
-            if not doctor.is_available:
-                messages.error(request, 'Doctor is not available at the moment')
-                return redirect('book_appointment')
+                # Check if doctor is available
+                if not doctor.is_available:
+                    messages.error(request, 'Doctor is not available at the moment')
+                    return redirect('book_appointment')
 
-            # Check if time slot is available
-            if Appointment.objects.filter(
-                doctor=doctor,
-                appointment_date=appointment_date,
-                appointment_time=appointment_time,
-                status__in=['PENDING', 'CONFIRMED']
-            ).exists():
-                messages.error(request, 'This time slot is already booked')
-                return redirect('book_appointment')
+                # Check if time slot is available
+                if Appointment.objects.filter(
+                    doctor=doctor,
+                    appointment_date=appointment_date,
+                    appointment_time=appointment_time,
+                    status__in=['PENDING', 'CONFIRMED']
+                ).exists():
+                    messages.error(request, 'This time slot is already booked')
+                    return redirect('book_appointment')
 
-            Appointment.objects.create(
-                patient=request.user.patient,
-                doctor=doctor,
-                appointment_date=appointment_date,
-                appointment_time=appointment_time,
-                reason=reason
-            )
+                Appointment.objects.create(
+                    patient=request.user.patient,
+                    doctor=doctor,
+                    appointment_date=appointment_date,
+                    appointment_time=appointment_time,
+                    reason=reason
+                )
 
-            messages.success(request, 'Appointment booked successfully')
-            return redirect('dashboard')
+                messages.success(request, 'Appointment booked successfully')
+                return redirect('dashboard')
+            except Exception as e:
+                logger.error(f"Appointment booking error: {str(e)}")
+                return render(request, 'core/error.html', {
+                    'error_title': 'Booking Error',
+                    'error_message': 'Failed to book appointment.',
+                    'error_details': str(e)
+                })
 
         doctors = Doctor.objects.filter(is_available=True)
         return render(request, 'core/book_appointment.html', {'doctors': doctors})
     
     except Exception as e:
         logger.error(f"Book appointment error: {str(e)}")
-        messages.error(request, 'An error occurred while booking the appointment.')
-        return redirect('dashboard')
+        return render(request, 'core/error.html', {
+            'error_title': 'Appointment Error',
+            'error_message': 'An error occurred while accessing the booking page.',
+            'error_details': str(e)
+        })
 
 @login_required
 def medical_records(request):
     try:
         if hasattr(request.user, 'patient'):
             records = MedicalRecord.objects.filter(patient=request.user.patient).order_by('-created_at')
+            context = {
+                'records': records,
+                'is_patient': True
+            }
         elif hasattr(request.user, 'doctor'):
             records = MedicalRecord.objects.filter(doctor=request.user.doctor).order_by('-created_at')
+            context = {
+                'records': records,
+                'is_doctor': True
+            }
         else:
-            raise PermissionDenied
+            return render(request, 'core/error.html', {
+                'error_title': 'Access Denied',
+                'error_message': 'You do not have permission to view medical records.',
+                'error_details': 'Only patients and doctors can access medical records.'
+            })
 
-        return render(request, 'core/medical_records.html', {'records': records})
+        return render(request, 'core/medical_records.html', context)
     
     except Exception as e:
         logger.error(f"Medical records error: {str(e)}")
-        messages.error(request, 'An error occurred while loading medical records.')
-        return redirect('dashboard')
+        return render(request, 'core/error.html', {
+            'error_title': 'Medical Records Error',
+            'error_message': 'An error occurred while loading medical records.',
+            'error_details': str(e)
+        })
 
 @login_required
 @user_passes_test(is_doctor)
@@ -504,28 +616,79 @@ def appointment_detail(request, appointment_id):
         
         # Check if user has permission to view this appointment
         if not (hasattr(request.user, 'doctor') and appointment.doctor == request.user.doctor) and \
-           not (hasattr(request.user, 'patient') and appointment.patient == request.user.patient):
-            raise PermissionDenied
+           not (hasattr(request.user, 'patient') and appointment.patient == request.user.patient) and \
+           not (hasattr(request.user, 'employee') or hasattr(request.user, 'adminprofile')):
+            return render(request, 'core/error.html', {
+                'error_title': 'Access Denied',
+                'error_message': 'You do not have permission to view this appointment.',
+                'error_details': 'Only the patient, doctor, or staff members can view appointment details.'
+            })
 
         if request.method == 'POST':
-            if hasattr(request.user, 'doctor'):
-                status = request.POST.get('status')
-                notes = request.POST.get('notes')
-                
-                if status:
+            try:
+                if hasattr(request.user, 'doctor'):
+                    status = request.POST.get('status')
+                    notes = request.POST.get('notes')
+                    
+                    if status and status not in dict(Appointment.STATUS_CHOICES):
+                        raise ValidationError('Invalid appointment status')
+                    
+                    if status:
+                        appointment.status = status
+                    if notes:
+                        appointment.notes = notes
+                    
+                    appointment.save()
+                    messages.success(request, 'Appointment updated successfully')
+                elif hasattr(request.user, 'employee') or hasattr(request.user, 'adminprofile'):
+                    status = request.POST.get('status')
+                    if status and status not in dict(Appointment.STATUS_CHOICES):
+                        raise ValidationError('Invalid appointment status')
+                    
                     appointment.status = status
-                if notes:
-                    appointment.notes = notes
-                
-                appointment.save()
-                messages.success(request, 'Appointment updated successfully')
+                    appointment.save()
+                    messages.success(request, 'Appointment status updated successfully')
+                else:
+                    return render(request, 'core/error.html', {
+                        'error_title': 'Permission Denied',
+                        'error_message': 'You do not have permission to update this appointment.',
+                        'error_details': 'Only doctors and staff members can update appointments.'
+                    })
+            except ValidationError as e:
+                return render(request, 'core/error.html', {
+                    'error_title': 'Validation Error',
+                    'error_message': 'Invalid appointment data.',
+                    'error_details': str(e)
+                })
+            except Exception as e:
+                logger.error(f"Appointment update error: {str(e)}")
+                return render(request, 'core/error.html', {
+                    'error_title': 'Update Error',
+                    'error_message': 'Failed to update appointment.',
+                    'error_details': str(e)
+                })
 
-        return render(request, 'core/appointment_detail.html', {'appointment': appointment})
+        context = {
+            'appointment': appointment,
+            'is_doctor': hasattr(request.user, 'doctor'),
+            'is_patient': hasattr(request.user, 'patient'),
+            'is_staff': hasattr(request.user, 'employee') or hasattr(request.user, 'adminprofile')
+        }
+        return render(request, 'core/appointment_detail.html', context)
     
+    except Appointment.DoesNotExist:
+        return render(request, 'core/error.html', {
+            'error_title': 'Not Found',
+            'error_message': 'The requested appointment does not exist.',
+            'error_details': 'The appointment may have been deleted or you may have entered an invalid ID.'
+        })
     except Exception as e:
         logger.error(f"Appointment detail error: {str(e)}")
-        messages.error(request, 'An error occurred while loading appointment details.')
-        return redirect('dashboard')
+        return render(request, 'core/error.html', {
+            'error_title': 'Appointment Error',
+            'error_message': 'An error occurred while loading appointment details.',
+            'error_details': str(e)
+        })
 
 @login_required
 @user_passes_test(is_admin)
@@ -538,7 +701,7 @@ def admin_dashboard(request):
             'total_appointments': Appointment.objects.count(),
             'total_bills': Bill.objects.count(),
             'revenue': Bill.objects.filter(paid=True).aggregate(
-                total=models.Sum('amount')
+                total=Sum('amount')
             )['total'] or 0,
             'recent_appointments': Appointment.objects.all().order_by('-created_at')[:5],
             'recent_bills': Bill.objects.all().order_by('-created_at')[:5],
@@ -638,47 +801,78 @@ def system_reports(request):
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
         
-        if start_date and end_date:
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        else:
-            # Default to last 30 days
-            end_date = timezone.now().date()
-            start_date = end_date - timedelta(days=30)
+        try:
+            if start_date and end_date:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                
+                # Validate date range
+                if start_date > end_date:
+                    raise ValidationError('Start date cannot be after end date')
+                if end_date > timezone.now().date():
+                    raise ValidationError('End date cannot be in the future')
+            else:
+                # Default to last 30 days
+                end_date = timezone.now().date()
+                start_date = end_date - timedelta(days=30)
+        except ValueError:
+            return render(request, 'core/error.html', {
+                'error_title': 'Invalid Date Format',
+                'error_message': 'The provided date format is invalid.',
+                'error_details': 'Please use the format YYYY-MM-DD for dates.'
+            })
+        except ValidationError as e:
+            return render(request, 'core/error.html', {
+                'error_title': 'Invalid Date Range',
+                'error_message': 'The provided date range is invalid.',
+                'error_details': str(e)
+            })
         
-        # Generate reports
-        context = {
-            'start_date': start_date,
-            'end_date': end_date,
-            'appointments': Appointment.objects.filter(
-                appointment_date__range=[start_date, end_date]
-            ).count(),
-            'revenue': Bill.objects.filter(
-                created_at__date__range=[start_date, end_date],
-                paid=True
-            ).aggregate(total=models.Sum('amount'))['total'] or 0,
-            'new_patients': Patient.objects.filter(
-                user__date_joined__date__range=[start_date, end_date]
-            ).count(),
-            'doctor_appointments': Appointment.objects.filter(
-                appointment_date__range=[start_date, end_date]
-            ).values('doctor__user__first_name', 'doctor__user__last_name').annotate(
-                count=models.Count('id')
-            ).order_by('-count')[:5],
-            'monthly_revenue': Bill.objects.filter(
-                paid=True
-            ).annotate(
-                month=models.functions.TruncMonth('created_at')
-            ).values('month').annotate(
-                total=models.Sum('amount')
-            ).order_by('month')[:12],
-        }
-        
-        return render(request, 'core/admin/system_reports.html', context)
+        try:
+            # Generate reports
+            context = {
+                'start_date': start_date,
+                'end_date': end_date,
+                'appointments': Appointment.objects.filter(
+                    appointment_date__range=[start_date, end_date]
+                ).count(),
+                'revenue': Bill.objects.filter(
+                    created_at__date__range=[start_date, end_date],
+                    payment_status='PAID'
+                ).aggregate(total=Sum('amount'))['total'] or 0,
+                'new_patients': Patient.objects.filter(
+                    user__date_joined__date__range=[start_date, end_date]
+                ).count(),
+                'doctor_appointments': Appointment.objects.filter(
+                    appointment_date__range=[start_date, end_date]
+                ).values('doctor__user__first_name', 'doctor__user__last_name').annotate(
+                    count=Count('id')
+                ).order_by('-count')[:5],
+                'monthly_revenue': Bill.objects.filter(
+                    payment_status='PAID'
+                ).annotate(
+                    month=models.functions.TruncMonth('created_at')
+                ).values('month').annotate(
+                    total=Sum('amount')
+                ).order_by('month')[:12],
+            }
+            
+            return render(request, 'core/admin/system_reports.html', context)
+        except Exception as e:
+            logger.error(f"Report generation error: {str(e)}")
+            return render(request, 'core/error.html', {
+                'error_title': 'Report Generation Error',
+                'error_message': 'Failed to generate system reports.',
+                'error_details': str(e)
+            })
+            
     except Exception as e:
         logger.error(f"System reports error: {str(e)}")
-        messages.error(request, 'An error occurred while generating reports.')
-        return redirect('admin_dashboard')
+        return render(request, 'core/error.html', {
+            'error_title': 'System Reports Error',
+            'error_message': 'An error occurred while accessing system reports.',
+            'error_details': str(e)
+        })
 
 @login_required
 @user_passes_test(is_employee)
@@ -694,7 +888,7 @@ def employee_dashboard(request):
             'total_doctors': Doctor.objects.count(),
             'pending_bills': Bill.objects.filter(paid=False).count(),
             'total_revenue': Bill.objects.filter(paid=True).aggregate(
-                total=models.Sum('amount')
+                total=Sum('amount')
             )['total'] or 0,
         }
         return render(request, 'core/employee/dashboard.html', context)

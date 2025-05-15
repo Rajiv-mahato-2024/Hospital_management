@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Doctor Schedules</h1>
+        <p class="mt-2 text-gray-600">View and manage doctor availability</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {% for doctor in doctors %}
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                            <span class="text-xl font-semibold text-blue-600">
+                                Dr. {{ doctor.user.get_full_name|make_list|first }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Dr. {{ doctor.user.get_full_name }}
+                        </h3>
+                        <p class="text-sm text-gray-500">{{ doctor.specialization }}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-500">Experience</span>
+                        <span class="text-sm text-gray-900">{{ doctor.experience }} years</span>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-500">Status</span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if doctor.is_available %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {% if doctor.is_available %}Available{% else %}Unavailable{% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h4 class="text-sm font-medium text-gray-500">Contact Information</h4>
+                    <div class="mt-2 text-sm text-gray-900">
+                        <p>Phone: {{ doctor.phone }}</p>
+                        <p>Address: {{ doctor.address }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex justify-end space-x-3">
+                    <a href="{% url 'appointment_detail' doctor.id %}" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        View Schedule
+                    </a>
+                    <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Toggle Availability
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12">
+            <p class="text-gray-500">No doctors found</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

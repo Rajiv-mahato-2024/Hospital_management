@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="text-center">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ error_title|default:"Error" }}</h1>
+        <p class="text-xl text-gray-600 mb-8">{{ error_message|default:"An error occurred while processing your request." }}</p>
+        
+        {% if error_details %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+            <p class="text-red-700">{{ error_details }}</p>
+        </div>
+        {% endif %}
+
+        <div class="space-x-4">
+            <a href="javascript:history.back()" class="inline-block bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700">
+                Go Back
+            </a>
+            <a href="{% url 'home' %}" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                Return to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

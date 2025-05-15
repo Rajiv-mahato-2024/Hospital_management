@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
+        
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="p-4 {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} rounded">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">User Type</label>
+                <select name="user_type" class="w-full px-3 py-2 border rounded" required>
+                    <option value="">Select User Type</option>
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Doctor</option>
+                    <option value="employee">Employee</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                <input type="text" name="username" value="{{ form_data.username }}" class="w-full px-3 py-2 border rounded" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                <input type="email" name="email" value="{{ form_data.email }}" class="w-full px-3 py-2 border rounded" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">First Name</label>
+                <input type="text" name="first_name" value="{{ form_data.first_name }}" class="w-full px-3 py-2 border rounded" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Last Name</label>
+                <input type="text" name="last_name" value="{{ form_data.last_name }}" class="w-full px-3 py-2 border rounded" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Phone</label>
+                <input type="tel" name="phone" value="{{ form_data.phone }}" class="w-full px-3 py-2 border rounded" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Address</label>
+                <textarea name="address" class="w-full px-3 py-2 border rounded" required>{{ form_data.address }}</textarea>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                <input type="password" name="password" class="w-full px-3 py-2 border rounded" required>
+            </div>
+
+            <!-- Patient-specific fields -->
+            <div id="patient-fields" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Date of Birth</label>
+                    <input type="date" name="date_of_birth" value="{{ form_data.date_of_birth }}" class="w-full px-3 py-2 border rounded">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Blood Group</label>
+                    <select name="blood_group" class="w-full px-3 py-2 border rounded">
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Emergency Contact</label>
+                    <input type="tel" name="emergency_contact" value="{{ form_data.emergency_contact }}" class="w-full px-3 py-2 border rounded">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Emergency Contact Name</label>
+                    <input type="text" name="emergency_contact_name" value="{{ form_data.emergency_contact_name }}" class="w-full px-3 py-2 border rounded">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Allergies</label>
+                    <textarea name="allergies" class="w-full px-3 py-2 border rounded">{{ form_data.allergies }}</textarea>
+                </div>
+            </div>
+
+            <!-- Doctor-specific fields -->
+            <div id="doctor-fields" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Specialization</label>
+                    <select name="specialization" class="w-full px-3 py-2 border rounded">
+                        <option value="">Select Specialization</option>
+                        <option value="GENERAL">General Physician</option>
+                        <option value="CARDIOLOGY">Cardiology</option>
+                        <option value="NEUROLOGY">Neurology</option>
+                        <option value="PEDIATRICS">Pediatrics</option>
+                        <option value="DERMATOLOGY">Dermatology</option>
+                        <option value="ORTHOPEDICS">Orthopedics</option>
+                        <option value="GYNECOLOGY">Gynecology</option>
+                        <option value="OPHTHALMOLOGY">Ophthalmology</option>
+                        <option value="DENTISTRY">Dentistry</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Experience (years)</label>
+                    <input type="number" name="experience" value="{{ form_data.experience }}" class="w-full px-3 py-2 border rounded" min="0" max="50">
+                </div>
+            </div>
+
+            <!-- Employee-specific fields -->
+            <div id="employee-fields" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Position</label>
+                    <select name="position" class="w-full px-3 py-2 border rounded">
+                        <option value="">Select Position</option>
+                        <option value="RECEPTIONIST">Receptionist</option>
+                        <option value="NURSE">Nurse</option>
+                        <option value="PHARMACIST">Pharmacist</option>
+                        <option value="LAB_TECH">Lab Technician</option>
+                        <option value="ADMIN">Administrative Staff</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
+                Register
+            </button>
+        </form>
+
+        <div class="mt-4 text-center">
+            <p>Already have an account? <a href="{% url 'login' %}" class="text-blue-500 hover:text-blue-700">Login here</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeSelect = document.querySelector('select[name="user_type"]');
+    const patientFields = document.getElementById('patient-fields');
+    const doctorFields = document.getElementById('doctor-fields');
+    const employeeFields = document.getElementById('employee-fields');
+
+    userTypeSelect.addEventListener('change', function() {
+        // Hide all fields first
+        patientFields.classList.add('hidden');
+        doctorFields.classList.add('hidden');
+        employeeFields.classList.add('hidden');
+
+        // Show relevant fields
+        if (this.value === 'patient') {
+            patientFields.classList.remove('hidden');
+        } else if (this.value === 'doctor') {
+            doctorFields.classList.remove('hidden');
+        } else if (this.value === 'employee') {
+            employeeFields.classList.remove('hidden');
+        }
+    });
+});
+</script>
+{% endblock %} 

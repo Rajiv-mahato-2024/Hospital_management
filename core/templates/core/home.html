@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center py-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to Hospital Management System</h1>
+        <p class="text-xl text-gray-600 mb-8">Your trusted partner in healthcare management</p>
+        {% if not user.is_authenticated %}
+        <div class="space-x-4">
+            <a href="{% url 'login' %}" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">Login</a>
+            <a href="{% url 'register' %}" class="inline-block bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700">Register</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 py-12">
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Easy Appointment Booking</h2>
+            <p class="text-gray-600">Schedule appointments with our experienced doctors at your convenience.</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Digital Medical Records</h2>
+            <p class="text-gray-600">Access your medical history and prescriptions securely online.</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Online Bill Payment</h2>
+            <p class="text-gray-600">Pay your medical bills securely through our online payment system.</p>
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="text-center py-12">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% if user.patient %}
+            <a href="{% url 'book_appointment' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Book Appointment</h3>
+                <p class="text-gray-600">Schedule a new appointment</p>
+            </a>
+            <a href="{% url 'view_appointments' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">View Appointments</h3>
+                <p class="text-gray-600">Check your upcoming appointments</p>
+            </a>
+            <a href="{% url 'view_medical_records' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Medical Records</h3>
+                <p class="text-gray-600">Access your medical history</p>
+            </a>
+            <a href="{% url 'view_bills' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">View Bills</h3>
+                <p class="text-gray-600">Check and pay your bills</p>
+            </a>
+            {% endif %}
+
+            {% if user.doctor %}
+            <a href="{% url 'appointments' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Appointments</h3>
+                <p class="text-gray-600">View your appointments</p>
+            </a>
+            <a href="{% url 'patients' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Patients</h3>
+                <p class="text-gray-600">View patient records</p>
+            </a>
+            <a href="{% url 'medical_records' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Medical Records</h3>
+                <p class="text-gray-600">Manage patient records</p>
+            </a>
+            <a href="{% url 'profile' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Profile</h3>
+                <p class="text-gray-600">Update your profile</p>
+            </a>
+            {% endif %}
+
+            {% if user.employee %}
+            <a href="{% url 'manage_appointments_employee' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Appointments</h3>
+                <p class="text-gray-600">Manage appointments</p>
+            </a>
+            <a href="{% url 'manage_bills_employee' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Bills</h3>
+                <p class="text-gray-600">Manage patient bills</p>
+            </a>
+            <a href="{% url 'manage_patients_employee' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Patients</h3>
+                <p class="text-gray-600">Manage patient records</p>
+            </a>
+            <a href="{% url 'profile' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Profile</h3>
+                <p class="text-gray-600">Update your profile</p>
+            </a>
+            {% endif %}
+
+            {% if user.adminprofile %}
+            <a href="{% url 'admin_dashboard' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Dashboard</h3>
+                <p class="text-gray-600">View system overview</p>
+            </a>
+            <a href="{% url 'manage_users' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Users</h3>
+                <p class="text-gray-600">Manage system users</p>
+            </a>
+            <a href="{% url 'manage_doctors' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Doctors</h3>
+                <p class="text-gray-600">Manage doctor profiles</p>
+            </a>
+            <a href="{% url 'manage_employees' %}" class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg">
+                <h3 class="font-semibold text-gray-900">Employees</h3>
+                <p class="text-gray-600">Manage employee profiles</p>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

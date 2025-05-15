@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p class="mt-2 text-gray-600">Welcome back, {{ user.get_full_name }}!</p>
+    </div>
+
+    {% if user.patient %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Upcoming Appointments</h3>
+            <p class="text-3xl font-bold text-blue-600 mt-2">{{ upcoming_appointments_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Medical Records</h3>
+            <p class="text-3xl font-bold text-green-600 mt-2">{{ medical_records_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Pending Bills</h3>
+            <p class="text-3xl font-bold text-yellow-600 mt-2">{{ pending_bills_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Bills</h3>
+            <p class="text-3xl font-bold text-purple-600 mt-2">{{ total_bills_count }}</p>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Recent Appointments</h2>
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for appointment in recent_appointments %}
+                <li class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Dr. {{ appointment.doctor.user.get_full_name }}</p>
+                            <p class="text-sm text-gray-500">{{ appointment.appointment_date|date:"F d, Y" }} at {{ appointment.appointment_time|time:"g:i A" }}</p>
+                        </div>
+                        <div class="ml-4">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if appointment.status == 'SCHEDULED' %}bg-blue-100 text-blue-800
+                                {% elif appointment.status == 'COMPLETED' %}bg-green-100 text-green-800
+                                {% elif appointment.status == 'CANCELLED' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ appointment.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="px-6 py-4 text-center text-gray-500">No recent appointments</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user.doctor %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Today's Appointments</h3>
+            <p class="text-3xl font-bold text-blue-600 mt-2">{{ today_appointments_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Patients</h3>
+            <p class="text-3xl font-bold text-green-600 mt-2">{{ total_patients_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Medical Records</h3>
+            <p class="text-3xl font-bold text-yellow-600 mt-2">{{ medical_records_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Experience</h3>
+            <p class="text-3xl font-bold text-purple-600 mt-2">{{ user.doctor.experience }} years</p>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Today's Schedule</h2>
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for appointment in today_appointments %}
+                <li class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ appointment.patient.user.get_full_name }}</p>
+                            <p class="text-sm text-gray-500">{{ appointment.appointment_time|time:"g:i A" }}</p>
+                        </div>
+                        <div class="ml-4">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if appointment.status == 'SCHEDULED' %}bg-blue-100 text-blue-800
+                                {% elif appointment.status == 'COMPLETED' %}bg-green-100 text-green-800
+                                {% elif appointment.status == 'CANCELLED' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ appointment.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="px-6 py-4 text-center text-gray-500">No appointments scheduled for today</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user.employee %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Today's Appointments</h3>
+            <p class="text-3xl font-bold text-blue-600 mt-2">{{ today_appointments_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Pending Bills</h3>
+            <p class="text-3xl font-bold text-green-600 mt-2">{{ pending_bills_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Patients</h3>
+            <p class="text-3xl font-bold text-yellow-600 mt-2">{{ total_patients_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Doctors</h3>
+            <p class="text-3xl font-bold text-purple-600 mt-2">{{ total_doctors_count }}</p>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Recent Activities</h2>
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {% for activity in recent_activities %}
+                <li class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ activity.description }}</p>
+                            <p class="text-sm text-gray-500">{{ activity.timestamp|date:"F d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="px-6 py-4 text-center text-gray-500">No recent activities</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user.adminprofile %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Users</h3>
+            <p class="text-3xl font-bold text-blue-600 mt-2">{{ total_users_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Doctors</h3>
+            <p class="text-3xl font-bold text-green-600 mt-2">{{ total_doctors_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Patients</h3>
+            <p class="text-3xl font-bold text-yellow-600 mt-2">{{ total_patients_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900">Total Employees</h3>
+            <p class="text-3xl font-bold text-purple-600 mt-2">{{ total_employees_count }}</p>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">System Overview</h2>
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                <li class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Total Appointments</p>
+                            <p class="text-3xl font-bold text-blue-600">{{ total_appointments_count }}</p>
+                        </div>
+                    </div>
+                </li>
+                <li class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Total Medical Records</p>
+                            <p class="text-3xl font-bold text-green-600">{{ total_medical_records_count }}</p>
+                        </div>
+                    </div>
+                </li>
+                <li class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Total Bills</p>
+                            <p class="text-3xl font-bold text-yellow-600">{{ total_bills_count }}</p>
+                        </div>
+                    </div>
+                </li>
+                <li class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Total Revenue</p>
+                            <p class="text-3xl font-bold text-purple-600">${{ total_revenue }}</p>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 
